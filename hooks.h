@@ -1314,6 +1314,11 @@ HOOKDEF(int, CDECL, system,
 	const char *command
 );
 
+HOOKDEF(FARPROC, WINAPI, GetProcAddress,
+	_In_	HMODULE	hModule,
+	_In_	LPCSTR lpProcName
+);
+
 HOOKDEF(BOOL, WINAPI, CreateProcessWithLogonW,
 	_In_		LPCWSTR			   lpUsername,
 	_In_opt_	LPCWSTR			   lpDomain,

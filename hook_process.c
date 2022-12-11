@@ -1221,3 +1221,17 @@ HOOKDEF_NOTAIL(WINAPI, NtRaiseException,
 
 	return 0;
 }
+
+HOOKDEF(FARPROC, WINAPI, GetProcAddress,
+	_In_	HMODULE	hModule,
+	_In_	LPCSTR lpProcName
+){
+	FARPROC ret = Old_GetProcAddress(hModule, lpProcName);
+
+	if (ret == NULL)
+		LOQ_bool("process", "");
+	else
+		LOQ_bool("process", "ps", "Module", hModule, "ProcName", lpProcName);
+
+	return ret;
+}

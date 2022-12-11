@@ -290,6 +290,7 @@ hook_t full_hooks[] = {
 	// all variants of ShellExecute end up in ShellExecuteExW
 	HOOK(shell32, ShellExecuteExW),
 	HOOK(msvcrt, system),
+	HOOK(kernel32, GetProcAddress),
 
 	// Thread Hooks
 	HOOK(ntdll, NtCreateThread),
