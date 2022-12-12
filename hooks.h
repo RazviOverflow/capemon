@@ -1842,6 +1842,11 @@ HOOKDEF(HRESULT, WINAPI, PStoreCreateInstance,
 	_In_  DWORD dwFlags
 );
 
+HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
+	_In_opt_ LPCSTR lpModuleName
+);
+
+
 //
 // Network Hooks
 //

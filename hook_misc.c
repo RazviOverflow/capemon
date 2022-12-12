@@ -1773,3 +1773,12 @@ HOOKDEF(LPWSTR, WINAPI, GetCommandLineW,
 	LOQ_nonnull("misc", "u", "CommandLine", ret);
 	return ret;
 }
+
+HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
+	_In_opt_ LPCSTR lpModuleName
+) {
+	HMODULE ret = Old_GetModuleHandleA(lpModuleName);
+
+	LOQ_nonnull("misc", "spo", "Module name", lpModuleName, "HModule", ret, "ModuleName", get_basename_of_module(ret));
+	return ret;
+}

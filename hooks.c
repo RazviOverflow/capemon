@@ -1022,6 +1022,9 @@ hook_t office_hooks[] = {
 	HOOK(oleaut32, VarBstrCat),
 	HOOK_NOTAIL(usp10, ScriptIsComplex, 3),
 	HOOK_NOTAIL(inseng,DownloadFile,3),
+	HOOK(kernel32, GetModuleHandleA),
+
+
 #ifndef _WIN64
 	HOOK(ntdll, RtlDosPathNameToNtPathName_U),
 	HOOK(ntdll, NtQueryLicenseValue),
