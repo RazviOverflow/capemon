@@ -412,6 +412,12 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationByHandleW,
 	_In_	  DWORD   nFileSystemNameSize
 );
 
+HOOKDEF(HANDLE, WINAPI, OpenThread, 
+	_In_ DWORD dwDesiredAccess,
+	_In_ BOOL bInheritHandle,
+	_In_ DWORD dwThreadId
+);
+
 //
 // Registry Hooks
 //
