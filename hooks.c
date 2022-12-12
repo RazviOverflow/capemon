@@ -142,6 +142,8 @@ hook_t full_hooks[] = {
 	HOOK(version, GetFileVersionInfoW),
 	HOOK(version, GetFileVersionInfoSizeW),
 	HOOK(kernel32, FindFirstChangeNotificationW),
+	HOOK(kernel32, GetVolumeInformationA),
+	HOOK(kernel32, GetVolumeInformationW),
 
 	// Registry Hooks
 	// Note: Most, if not all, of the Registry API go natively from both the
@@ -788,6 +790,8 @@ hook_t office_hooks[] = {
 	HOOK(version, GetFileVersionInfoW),
 	HOOK(version, GetFileVersionInfoSizeW),
 	HOOK(kernel32, FindFirstChangeNotificationW),
+	HOOK(kernel32, GetVolumeInformationA),
+	HOOK(kernel32, GetVolumeInformationW),
 
 	// Registry Hooks
 	// Note: Most, if not all, of the Registry API go natively from both the
