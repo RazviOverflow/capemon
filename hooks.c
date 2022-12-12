@@ -312,6 +312,7 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, CreateRemoteThread),
 	HOOK(kernel32, SwitchToThread),
 	//HOOK(kernel32, DisableThreadLibraryCalls),
+	HOOK(kernel32, Sleep),
 
 	// Misc Hooks
 #ifndef _WIN64

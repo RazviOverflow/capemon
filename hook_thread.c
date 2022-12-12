@@ -691,3 +691,11 @@ HOOKDEF(BOOL, WINAPI, DisableThreadLibraryCalls,
 	LOQ_bool("threading", "p", "Module", hLibModule);
 	return ret;
 }
+
+HOOKDEF(void, WINAPI, Sleep,
+	_In_ DWORD dwMilliseconds
+) {
+	int ret = 0; // Needed for LOQ_void
+	Old_Sleep(dwMilliseconds);
+	LOQ_void("threading", "i", "Miliseconds", dwMilliseconds);
+}

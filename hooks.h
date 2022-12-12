@@ -1460,6 +1460,10 @@ HOOKDEF(NTSTATUS, WINAPI, RtlCreateUserThread,
 	OUT PCLIENT_ID ClientId
 );
 
+HOOKDEF(void, WINAPI, Sleep,
+	_In_ DWORD dwMilliseconds	
+);
+
 //
 // Misc Hooks
 //
