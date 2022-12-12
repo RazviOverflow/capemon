@@ -249,6 +249,7 @@ hook_t full_hooks[] = {
 	HOOK(ntdll, NtFindAtom),
 	HOOK(ntdll, NtDeleteAtom),
 	HOOK(ntdll, NtQueryInformationAtom),
+	HOOK(kernel32, CreateMutexA),
 
 	// Process Hooks
 	HOOK(ntdll, NtAllocateVirtualMemory),
@@ -892,6 +893,7 @@ hook_t office_hooks[] = {
 	HOOK(ntdll, NtFindAtom),
 	HOOK(ntdll, NtDeleteAtom),
 	HOOK(ntdll, NtQueryInformationAtom),
+	HOOK(kernel32, CreateMutexA),
 
 	// Process Hooks
 	HOOK(ntdll, NtAllocateVirtualMemory),

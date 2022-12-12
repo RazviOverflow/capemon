@@ -952,6 +952,12 @@ HOOKDEF(NTSTATUS, WINAPI, NtQueryInformationAtom,
 	OUT PULONG ReturnLength OPTIONAL
 );
 
+HOOKDEF(HANDLE, WINAPI, CreateMutexA,
+	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
+	_In_ BOOL bInitialOwner,
+	_In_opt_ LPCSTR lpName
+);
+
 //
 // Process Hooks
 //

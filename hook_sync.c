@@ -177,3 +177,15 @@ HOOKDEF(NTSTATUS, WINAPI, NtQueryInformationAtom,
 	
 	return ret;
 }
+
+HOOKDEF(HANDLE, WINAPI, CreateMutexA,
+	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
+	_In_ BOOL bInitialOwner,
+	_In_opt_ LPCSTR lpName
+) {
+	HANDLE ret = Old_CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
+
+	LOQ_nonnull("synchronization", "is", "Initial Owner", bInitialOwner, "Mutex name (lpName)", lpName);
+
+	return ret;
+}
