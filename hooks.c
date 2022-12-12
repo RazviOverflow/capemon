@@ -389,6 +389,8 @@ hook_t full_hooks[] = {
 	HOOK(oleaut32, VarBstrCat),
 	HOOK_NOTAIL(usp10, ScriptIsComplex, 3),
 	HOOK_NOTAIL(inseng,DownloadFile,3),
+	HOOK(kernel32, GetModuleHandleA),
+	HOOK(kernel32, GetModuleHandleW),
 #ifndef _WIN64
 	HOOK(ntdll, RtlDosPathNameToNtPathName_U),
 	HOOK(ntdll, NtQueryLicenseValue),
@@ -927,6 +929,7 @@ hook_t office_hooks[] = {
 	// all variants of ShellExecute end up in ShellExecuteExW
 	HOOK(shell32, ShellExecuteExW),
 	HOOK(msvcrt, system),
+	HOOK(kernel32, GetProcAddress),
 
 	// Thread Hooks
 	HOOK(ntdll, NtCreateThread),
@@ -947,6 +950,7 @@ hook_t office_hooks[] = {
 	HOOK(kernel32, CreateThread),
 	HOOK(kernel32, CreateRemoteThread),
 	HOOK(kernel32, SwitchToThread),
+	HOOK(kernel32, Sleep),
 
 	// Misc Hooks
 #ifndef _WIN64
