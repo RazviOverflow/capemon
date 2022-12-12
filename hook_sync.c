@@ -189,3 +189,15 @@ HOOKDEF(HANDLE, WINAPI, CreateMutexA,
 
 	return ret;
 }
+
+HOOKDEF(HANDLE, WINAPI, CreateMutexW,
+	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
+	_In_ BOOL bInitialOwner,
+	_In_opt_ LPCWSTR lpName
+) {
+	HANDLE ret = Old_CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
+
+	LOQ_nonnull("synchronization", "iu", "Initial Owner", bInitialOwner, "Mutex name (lpName)", lpName);
+
+	return ret;
+}
