@@ -1782,3 +1782,12 @@ HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
 	LOQ_nonnull("misc", "spo", "Module name", lpModuleName, "HModule", ret, "ModuleName", get_basename_of_module(ret));
 	return ret;
 }
+
+HOOKDEF(HMODULE, WINAPI, GetModuleHandleW,
+	_In_opt_ LPCWSTR lpModuleName
+) {
+	HMODULE ret = Old_GetModuleHandleA(lpModuleName);
+
+	LOQ_nonnull("misc", "upo", "Module name", lpModuleName, "HModule", ret, "ModuleName", get_basename_of_module(ret));
+	return ret;
+}

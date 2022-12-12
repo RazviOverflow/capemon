@@ -1846,6 +1846,9 @@ HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
 	_In_opt_ LPCSTR lpModuleName
 );
 
+HOOKDEF(HMODULE, WINAPI, GetModuleHandleW,
+	_In_opt_ LPCWSTR lpModuleName
+);
 
 //
 // Network Hooks

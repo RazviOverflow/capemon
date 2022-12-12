@@ -1023,6 +1023,7 @@ hook_t office_hooks[] = {
 	HOOK_NOTAIL(usp10, ScriptIsComplex, 3),
 	HOOK_NOTAIL(inseng,DownloadFile,3),
 	HOOK(kernel32, GetModuleHandleA),
+	HOOK(kernel32, GetModuleHandleW),
 
 
 #ifndef _WIN64
