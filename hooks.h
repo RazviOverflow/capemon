@@ -331,28 +331,6 @@ HOOKDEF(BOOL, WINAPI, GetDiskFreeSpaceW,
 	_Out_  LPDWORD lpTotalNumberOfClusters
 );
 
-HOOKDEF(BOOL, WINAPI, GetVolumeInformationA,
-	_In_opt_   LPCSTR lpRootPathName,
-	_Out_opt_  LPSTR lpVolumeNameBuffer,
-	_In_	   DWORD nVolumeNameSize,
-	_Out_opt_  LPDWORD lpVolumeSerialNumber,
-	_Out_opt_  LPDWORD lpMaximumComponentLength,
-	_Out_opt_  LPDWORD lpFileSystemFlags,
-	_Out_opt_  LPSTR lpFileSystemNameBuffer,
-	_In_	   DWORD nFileSystemNameSize
-);
-
-HOOKDEF(BOOL, WINAPI, GetVolumeInformationW,
-	_In_opt_   LPCWSTR lpRootPathName,
-	_Out_opt_  LPWSTR lpVolumeNameBuffer,
-	_In_	   DWORD nVolumeNameSize,
-	_Out_opt_  LPDWORD lpVolumeSerialNumber,
-	_Out_opt_  LPDWORD lpMaximumComponentLength,
-	_Out_opt_  LPDWORD lpFileSystemFlags,
-	_Out_opt_  LPWSTR lpFileSystemNameBuffer,
-	_In_	   DWORD nFileSystemNameSize
-);
-
 HOOKDEF(BOOL, WINAPI, GetVolumeNameForVolumeMountPointW,
 	_In_ LPCWSTR lpszVolumeMountPoint,
 	_Out_ LPWSTR lpszVolumeName,
@@ -410,12 +388,6 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationByHandleW,
 	_Out_opt_ LPDWORD lpFileSystemFlags,
 	_Out_opt_ LPWSTR  lpFileSystemNameBuffer,
 	_In_	  DWORD   nFileSystemNameSize
-);
-
-HOOKDEF(HANDLE, WINAPI, OpenThread, 
-	_In_ DWORD dwDesiredAccess,
-	_In_ BOOL bInheritHandle,
-	_In_ DWORD dwThreadId
 );
 
 //
@@ -958,18 +930,6 @@ HOOKDEF(NTSTATUS, WINAPI, NtQueryInformationAtom,
 	OUT PULONG ReturnLength OPTIONAL
 );
 
-HOOKDEF(HANDLE, WINAPI, CreateMutexA,
-	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
-	_In_ BOOL bInitialOwner,
-	_In_opt_ LPCSTR lpName
-);
-
-HOOKDEF(HANDLE, WINAPI, CreateMutexW,
-	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
-	_In_ BOOL bInitialOwner,
-	_In_opt_ LPCSTR lpName
-);
-
 //
 // Process Hooks
 //
@@ -1332,11 +1292,6 @@ HOOKDEF(int, CDECL, system,
 	const char *command
 );
 
-HOOKDEF(FARPROC, WINAPI, GetProcAddress,
-	_In_	HMODULE	hModule,
-	_In_	LPCSTR lpProcName
-);
-
 HOOKDEF(BOOL, WINAPI, CreateProcessWithLogonW,
 	_In_		LPCWSTR			   lpUsername,
 	_In_opt_	LPCWSTR			   lpDomain,
@@ -1476,10 +1431,6 @@ HOOKDEF(NTSTATUS, WINAPI, RtlCreateUserThread,
 	IN PVOID StartParameter OPTIONAL,
 	OUT PHANDLE ThreadHandle,
 	OUT PCLIENT_ID ClientId
-);
-
-HOOKDEF(void, WINAPI, Sleep,
-	_In_ DWORD dwMilliseconds	
 );
 
 //
@@ -1862,14 +1813,6 @@ HOOKDEF(HRESULT, WINAPI, PStoreCreateInstance,
 	_In_  VOID  *pProviderID,
 	_In_  VOID  *pReserved,
 	_In_  DWORD dwFlags
-);
-
-HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
-	_In_opt_ LPCSTR lpModuleName
-);
-
-HOOKDEF(HMODULE, WINAPI, GetModuleHandleW,
-	_In_opt_ LPCWSTR lpModuleName
 );
 
 //
@@ -3438,4 +3381,62 @@ HOOKDEF(LPWSTR, WINAPI, GetCommandLineW,
 
 HOOKDEF(BOOL, WINAPI, DisableThreadLibraryCalls,
 	__in HMODULE hLibModule
+);
+
+// Extension hooks
+HOOKDEF(FARPROC, WINAPI, GetProcAddress,
+	_In_	HMODULE	hModule,
+	_In_	LPCSTR lpProcName
+);
+
+HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
+	_In_opt_ LPCSTR lpModuleName
+);
+
+HOOKDEF(HMODULE, WINAPI, GetModuleHandleW,
+	_In_opt_ LPCWSTR lpModuleName
+);
+
+HOOKDEF(void, WINAPI, Sleep,
+	_In_ DWORD dwMilliseconds
+);
+
+HOOKDEF(HANDLE, WINAPI, CreateMutexA,
+	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
+	_In_ BOOL bInitialOwner,
+	_In_opt_ LPCSTR lpName
+);
+
+HOOKDEF(HANDLE, WINAPI, CreateMutexW,
+	_In_opt_ LPSECURITY_ATTRIBUTES lpMutexAttributes,
+	_In_ BOOL bInitialOwner,
+	_In_opt_ LPCSTR lpName
+);
+
+HOOKDEF(BOOL, WINAPI, GetVolumeInformationA,
+	_In_opt_   LPCSTR lpRootPathName,
+	_Out_opt_  LPSTR lpVolumeNameBuffer,
+	_In_	   DWORD nVolumeNameSize,
+	_Out_opt_  LPDWORD lpVolumeSerialNumber,
+	_Out_opt_  LPDWORD lpMaximumComponentLength,
+	_Out_opt_  LPDWORD lpFileSystemFlags,
+	_Out_opt_  LPSTR lpFileSystemNameBuffer,
+	_In_	   DWORD nFileSystemNameSize
+);
+
+HOOKDEF(BOOL, WINAPI, GetVolumeInformationW,
+	_In_opt_   LPCWSTR lpRootPathName,
+	_Out_opt_  LPWSTR lpVolumeNameBuffer,
+	_In_	   DWORD nVolumeNameSize,
+	_Out_opt_  LPDWORD lpVolumeSerialNumber,
+	_Out_opt_  LPDWORD lpMaximumComponentLength,
+	_Out_opt_  LPDWORD lpFileSystemFlags,
+	_Out_opt_  LPWSTR lpFileSystemNameBuffer,
+	_In_	   DWORD nFileSystemNameSize
+);
+
+HOOKDEF(HANDLE, WINAPI, OpenThread,
+	_In_ DWORD dwDesiredAccess,
+	_In_ BOOL bInheritHandle,
+	_In_ DWORD dwThreadId
 );
