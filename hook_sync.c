@@ -185,7 +185,7 @@ HOOKDEF(HANDLE, WINAPI, CreateMutexA,
 ) {
 	HANDLE ret = Old_CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
 
-	LOQ_nonnull("synchronization", "is", "Initial Owner", bInitialOwner, "Mutex name (lpName)", lpName);
+	LOQ_nonnull("synchronization", "is", "Initial Owner", bInitialOwner, "MutexName (lpName)", lpName);
 
 	return ret;
 }
@@ -195,9 +195,9 @@ HOOKDEF(HANDLE, WINAPI, CreateMutexW,
 	_In_ BOOL bInitialOwner,
 	_In_opt_ LPCWSTR lpName
 ) {
-	HANDLE ret = Old_CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
+	HANDLE ret = Old_CreateMutexW(lpMutexAttributes, bInitialOwner, lpName);
 
-	LOQ_nonnull("synchronization", "iu", "Initial Owner", bInitialOwner, "Mutex name (lpName)", lpName);
+	LOQ_nonnull("synchronization", "iu", "Initial Owner", bInitialOwner, "MutexName (lpName)", lpName);
 
 	return ret;
 }
