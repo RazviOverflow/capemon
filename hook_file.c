@@ -1428,14 +1428,14 @@ HOOKDEF(BOOL, WINAPI, GetDiskFreeSpaceW,
 }
 
 HOOKDEF(BOOL, WINAPI, GetVolumeInformationA,
-	_In_opt_   LPCSTR lpRootPathName,
-	_Out_opt_  LPSTR lpVolumeNameBuffer,
-	_In_	   DWORD nVolumeNameSize,
-	_Out_opt_  LPDWORD lpVolumeSerialNumber,
-	_Out_opt_  LPDWORD lpMaximumComponentLength,
-	_Out_opt_  LPDWORD lpFileSystemFlags,
-	_Out_opt_  LPSTR lpFileSystemNameBuffer,
-	_In_	   DWORD nFileSystemNameSize
+	_In_opt_ LPCSTR lpRootPathName,
+	_Out_writes_opt_(nVolumeNameSize) LPSTR lpVolumeNameBuffer,
+	_In_ DWORD nVolumeNameSize,
+	_Out_opt_ LPDWORD lpVolumeSerialNumber,
+	_Out_opt_ LPDWORD lpMaximumComponentLength,
+	_Out_opt_ LPDWORD lpFileSystemFlags,
+	_Out_writes_opt_(nFileSystemNameSize) LPSTR lpFileSystemNameBuffer,
+	_In_ DWORD nFileSystemNameSize
 )
 {
 	BOOL ret = Old_GetVolumeInformationA(lpRootPathName, lpVolumeNameBuffer, nVolumeNameSize, lpVolumeSerialNumber, lpMaximumComponentLength, lpFileSystemFlags, lpFileSystemNameBuffer, nFileSystemNameSize);
@@ -1444,16 +1444,15 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationA,
 }
 
 HOOKDEF(BOOL, WINAPI, GetVolumeInformationW,
-	_In_opt_   LPCWSTR lpRootPathName,
-	_Out_opt_  LPWSTR lpVolumeNameBuffer,
-	_In_	   DWORD nVolumeNameSize,
-	_Out_opt_  LPDWORD lpVolumeSerialNumber,
-	_Out_opt_  LPDWORD lpMaximumComponentLength,
-	_Out_opt_  LPDWORD lpFileSystemFlags,
-	_Out_opt_  LPWSTR lpFileSystemNameBuffer,
-	_In_	   DWORD nFileSystemNameSize
-)
-{
+	_In_opt_ LPCWSTR lpRootPathName,
+	_Out_writes_opt_(nVolumeNameSize) LPWSTR lpVolumeNameBuffer,
+	_In_ DWORD nVolumeNameSize,
+	_Out_opt_ LPDWORD lpVolumeSerialNumber,
+	_Out_opt_ LPDWORD lpMaximumComponentLength,
+	_Out_opt_ LPDWORD lpFileSystemFlags,
+	_Out_writes_opt_(nFileSystemNameSize) LPWSTR lpFileSystemNameBuffer,
+	_In_ DWORD nFileSystemNameSize
+) {
 	BOOL ret = Old_GetVolumeInformationW(lpRootPathName, lpVolumeNameBuffer, nVolumeNameSize, lpVolumeSerialNumber, lpMaximumComponentLength, lpFileSystemFlags, lpFileSystemNameBuffer, nFileSystemNameSize);
 	LOQ_bool("filesystem", "u", "RootPathName", lpRootPathName);
 	return ret;
