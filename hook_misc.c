@@ -1779,16 +1779,15 @@ HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
 ) {
 	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked GetModuleHandleA for module %s\n", lpModuleName);
 	HMODULE ret = Old_GetModuleHandleA(lpModuleName);
-
-	LOQ_nonnull("misc", "spo", "Module name", lpModuleName, "HModule", ret, "ModuleName", get_basename_of_module(ret));
+	LOQ_nonnull("misc", "up", "Module name", lpModuleName, "HModule", ret);
 	return ret;
 }
 
 HOOKDEF(HMODULE, WINAPI, GetModuleHandleW,
 	_In_opt_ LPCWSTR lpModuleName
 ) {
-	HMODULE ret = Old_GetModuleHandleA(lpModuleName);
-
-	LOQ_nonnull("misc", "upo", "Module name", lpModuleName, "HModule", ret, "ModuleName", get_basename_of_module(ret));
+	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked GetModuleHandleW for module %ws\n", lpModuleName);
+	HMODULE ret = Old_GetModuleHandleW(lpModuleName);
+	LOQ_nonnull("misc", "up", "Module name", lpModuleName, "HModule", ret);
 	return ret;
 }

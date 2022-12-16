@@ -1228,11 +1228,7 @@ HOOKDEF(FARPROC, WINAPI, GetProcAddress,
 ){
 	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked GETPROCADDESS for module process %s\n", lpProcName);
 	FARPROC ret = Old_GetProcAddress(hModule, lpProcName);
-
-	if (ret == NULL)
-		LOQ_bool("process", "");
-	else
-		LOQ_bool("process", "ps", "Module", hModule, "ProcName", lpProcName);
+	LOQ_nonnull("process", "ps", "Module", hModule, "ProcName", lpProcName);
 
 	return ret;
 }
