@@ -1235,3 +1235,14 @@ HOOKDEF(FARPROC, WINAPI, GetProcAddress,
 
 	return ret;
 }
+
+/*HOOKDEF(HANDLE, WINAPI, OpenThread,
+	_In_ DWORD dwDesiredAccess,
+	_In_ BOOL bInheritHandle,
+	_In_ DWORD dwThreadId
+) {
+	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked OpenThread");//% iand InheritedHandle% iand ThreadId% i\n", dwDesiredAccess, bInheritHandle, dwThreadId);
+	HANDLE ret = Old_OpenThread(dwDesiredAccess, bInheritHandle, dwThreadId);
+	LOQ_nonnull("process", "iii", "Desired Acces", dwDesiredAccess, "Inherited Handle", bInheritHandle, "Thread ID", dwThreadId);
+	return ret;
+}*/

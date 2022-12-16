@@ -1597,15 +1597,3 @@ HOOKDEF(HANDLE, WINAPI, FindFirstChangeNotificationW,
 
 	return ret;
 }
-
-HOOKDEF(HANDLE, WINAPI, OpenThread,
-	_In_ DWORD dwDesiredAccess,
-	_In_ BOOL bInheritHandle,
-	_In_ DWORD dwThreadId
-) {
-	HANDLE ret = Old_OpenThread(dwDesiredAccess, bInheritHandle, dwThreadId);
-
-	LOQ_nonnull("filesystem", "iii", "Desired Acces", dwDesiredAccess, "Inherited Handle", bInheritHandle, "Thread ID", dwThreadId);
-
-	return ret;
-}
