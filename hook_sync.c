@@ -183,10 +183,9 @@ HOOKDEF(HANDLE, WINAPI, CreateMutexA,
 	_In_ BOOL bInitialOwner,
 	_In_opt_ LPCSTR lpName
 ) {
+	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked CreateMutexA for %s lpName\n", bInitialOwner, lpName);
 	HANDLE ret = Old_CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
-
 	LOQ_nonnull("synchronization", "is", "Initial Owner", bInitialOwner, "MutexName (lpName)", lpName);
-
 	return ret;
 }
 
@@ -195,9 +194,8 @@ HOOKDEF(HANDLE, WINAPI, CreateMutexW,
 	_In_ BOOL bInitialOwner,
 	_In_opt_ LPCWSTR lpName
 ) {
+	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked CreateMutexW for %ws lpName\n", bInitialOwner, lpName);
 	HANDLE ret = Old_CreateMutexW(lpMutexAttributes, bInitialOwner, lpName);
-
 	LOQ_nonnull("synchronization", "iu", "Initial Owner", bInitialOwner, "MutexName (lpName)", lpName);
-
 	return ret;
 }

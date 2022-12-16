@@ -1438,10 +1438,12 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationA,
 	_In_ DWORD nFileSystemNameSize
 )
 {
+	DebuggerOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked GetVolumeInformationA\n");// from pathname% sand buffer% sand volumenamesize% iand volumeserialnumber% iand maximumcomponentlength% iand filesystemflags% iand filesystemnamebuffer% sand filesystemnamesize% i\n", lpRootPathName, lpVolumeNameBuffer, nVolumeNameSize, lpVolumeSerialNumber, lpMaximumComponentLength, lpFileSystemFlags, lpFileSystemNameBuffer, nFileSystemNameSize);
 	BOOL ret = Old_GetVolumeInformationA(lpRootPathName, lpVolumeNameBuffer, nVolumeNameSize, lpVolumeSerialNumber, lpMaximumComponentLength, lpFileSystemFlags, lpFileSystemNameBuffer, nFileSystemNameSize);
 	LOQ_bool("filesystem", "s", "RootPathName", lpRootPathName);
 	return ret;
 }
+
 
 HOOKDEF(BOOL, WINAPI, GetVolumeInformationW,
 	_In_opt_ LPCWSTR lpRootPathName,
@@ -1453,6 +1455,7 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationW,
 	_Out_writes_opt_(nFileSystemNameSize) LPWSTR lpFileSystemNameBuffer,
 	_In_ DWORD nFileSystemNameSize
 ) {
+	DebuggerOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked GetVolumeInformationW\n");// from pathname% wsand buffer% sand volumenamesize% iand volumeserialnumber% iand maximumcomponentlength% iand filesystemflags% iand filesystemnamebuffer% sand filesystemnamesize% i\n", lpRootPathName, lpVolumeNameBuffer, nVolumeNameSize, lpVolumeSerialNumber, lpMaximumComponentLength, lpFileSystemFlags, lpFileSystemNameBuffer, nFileSystemNameSize);
 	BOOL ret = Old_GetVolumeInformationW(lpRootPathName, lpVolumeNameBuffer, nVolumeNameSize, lpVolumeSerialNumber, lpMaximumComponentLength, lpFileSystemFlags, lpFileSystemNameBuffer, nFileSystemNameSize);
 	LOQ_bool("filesystem", "u", "RootPathName", lpRootPathName);
 	return ret;

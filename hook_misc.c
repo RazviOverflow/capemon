@@ -1777,6 +1777,7 @@ HOOKDEF(LPWSTR, WINAPI, GetCommandLineW,
 HOOKDEF(HMODULE, WINAPI, GetModuleHandleA,
 	_In_opt_ LPCSTR lpModuleName
 ) {
+	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked GetModuleHandleA for module %s\n", lpModuleName);
 	HMODULE ret = Old_GetModuleHandleA(lpModuleName);
 
 	LOQ_nonnull("misc", "spo", "Module name", lpModuleName, "HModule", ret, "ModuleName", get_basename_of_module(ret));
