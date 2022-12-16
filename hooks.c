@@ -610,12 +610,12 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, GetProcAddress), // process
 	HOOK(kernel32, GetModuleHandleA), // misc
 	HOOK(kernel32, GetModuleHandleW), // misc
-	HOOK(kernel32, Sleep), // thread
+	HOOK(kernel32, Sleep), // threading (hook_sleep.c)
 	HOOK(kernel32, CreateMutexA), // sync
 	HOOK(kernel32, CreateMutexW), // sync
 	HOOK(kernel32, GetVolumeInformationA), // file
 	HOOK(kernel32, GetVolumeInformationW), // file
-	HOOK(kernel32, OpenThread), // process
+	//HOOK(kernel32, OpenThread), // process
 };
 
 // This hook set is intended to include only hooks which are necessary

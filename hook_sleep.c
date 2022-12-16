@@ -646,3 +646,13 @@ void init_startup_time(unsigned int startup_time)
 {
 	time_skipped.QuadPart += (unsigned __int64) startup_time * 10000;
 }
+
+HOOKDEF(void, WINAPI, Sleep,
+	_In_ DWORD dwMilliseconds
+) {
+	int ret = 0; // Needed for LOQ_void
+	DebugOutput("[**** DEBUG MESSAGE - EXTENDED HOOKS ****] Hooked Sleep for %i milliseconds\n", dwMilliseconds);
+	Old_Sleep(dwMilliseconds);
+	//Old_Sleep(1);
+	LOQ_void("threading", "i", "Miliseconds", dwMilliseconds);
+}
