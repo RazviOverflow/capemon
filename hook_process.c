@@ -1243,3 +1243,32 @@ HOOKDEF(FARPROC, WINAPI, GetProcAddress,
 	LOQ_nonnull("process", "iii", "Desired Acces", dwDesiredAccess, "Inherited Handle", bInheritHandle, "Thread ID", dwThreadId);
 	return ret;
 }*/
+
+HOOKDEF(BOOL, WINAPI, Process32First,
+	_In_ HANDLE hSnapshot,
+	_Inout_ LPPROCESSENTRY32 lppe
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked Process32First\n");
+	BOOL ret = Old_Process32First(hSnapshot, lppe);
+	LOQ_bool("process", "ui", "ProcessName", lppe->szExeFile, "ProcessId", lppe->th32ProcessID);
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, Process32Next,
+	_In_ HANDLE hSnapshot,
+	_Out_ LPPROCESSENTRY32 lppe
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked Process32Next\n");
+	BOOL ret = Old_Process32Next(hSnapshot, lppe);
+	LOQ_bool("process", "ui", "ProcessName", lppe->szExeFile, "ProcessId", lppe->th32ProcessID);
+	return ret;
+}
+
+HOOKDEF(VOID, WINAPI, ExitProcess,
+	_In_ UINT uExitCode
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked ExitProcess\n");
+	Old_ExitProcess(uExitCode);
+	int ret = 0;	// needed for LOQ_void
+	LOQ_void("process", "i", "ExitCode", uExitCode); // Modify category and log according to your needs
+}

@@ -3435,6 +3435,24 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationW,
 	_In_ DWORD nFileSystemNameSize
 );
 
+HOOKDEF(BOOL, WINAPI, CloseHandle,
+	_In_ HANDLE hObject
+);
+
+HOOKDEF(BOOL, WINAPI, Process32First,
+	_In_ HANDLE hSnapshot,
+	_Inout_ LPPROCESSENTRY32 lppe
+);
+
+HOOKDEF(BOOL, WINAPI, Process32Next,
+	_In_ HANDLE hSnapshot,
+	_Out_ LPPROCESSENTRY32 lppe
+);
+
+HOOKDEF(VOID, WINAPI, ExitProcess,
+	_In_ UINT uExitCode
+);
+
 /*
 HOOKDEF(HANDLE, WINAPI, OpenThread,
 	_In_ DWORD dwDesiredAccess,

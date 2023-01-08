@@ -1790,3 +1790,12 @@ HOOKDEF(HMODULE, WINAPI, GetModuleHandleW,
 	LOQ_nonnull("misc", "up", "Module name", lpModuleName, "HModule", ret);
 	return ret;
 }
+
+HOOKDEF(BOOL, WINAPI, CloseHandle,
+	_In_ HANDLE hObject
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CloseHandle\n");
+	BOOL ret = Old_CloseHandle(hObject);
+	LOQ_bool("misc", "p", "hObject", hObject); // Modify category and log according to your needs
+	return ret;
+}
