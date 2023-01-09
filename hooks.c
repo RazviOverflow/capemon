@@ -616,10 +616,10 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, GetVolumeInformationA), // file
 	HOOK(kernel32, GetVolumeInformationW), // file
 	//HOOK(kernel32, OpenThread), // process
-	HOOK(Kernel32, CloseHandle),
-	HOOK(Kernel32, Process32First),
-	HOOK(Kernel32, Process32Next),
-	HOOK(Kernel32, ExitProcess),
+	HOOK(kernel32, CloseHandle),
+	HOOK(kernel32, Process32First),
+	HOOK(kernel32, Process32Next),
+	HOOK(kernel32, ExitProcess),
 };
 
 // This hook set is intended to include only hooks which are necessary
