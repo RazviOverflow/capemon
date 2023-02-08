@@ -46,6 +46,7 @@ extern char *Instruction0, *Instruction1, *Instruction2, *Instruction3;
 extern char *procname0;
 extern char DumpSizeString[MAX_PATH];
 extern SIZE_T DumpSize;
+extern DWORD ExportAddress;
 
 void parse_config_line(char* line)
 {
@@ -292,8 +293,11 @@ void parse_config_line(char* line)
 			if (g_config.file_offsets)
 				DebugOutput("Breakpoints interpreted as file offsets.\n");
 		}
+		else if (!stricmp(key, "export")) {
+			ExportAddress = strtoul(value, NULL, 0);
+			DebugOutput("Config: Export address set to 0x%x", ExportAddress);
+		}
 		else if (!stricmp(key, "bp0")) {
-			char *p;
 			p = strchr(value, ':');
 			if (p && *(p+1) == ':') {
 				g_config.bp0 = 0;
@@ -362,7 +366,6 @@ void parse_config_line(char* line)
 			}
 		}
 		else if (!stricmp(key, "bp1")) {
-			char *p;
 			p = strchr(value, ':');
 			if (p && *(p+1) == ':') {
 				g_config.bp1 = 0;
@@ -431,7 +434,6 @@ void parse_config_line(char* line)
 			}
 		}
 		else if (!stricmp(key, "bp2")) {
-			char *p;
 			p = strchr(value, ':');
 			if (p && *(p+1) == ':') {
 				g_config.bp2 = 0;
@@ -500,7 +502,6 @@ void parse_config_line(char* line)
 			}
 		}
 		else if (!stricmp(key, "bp3")) {
-			char *p;
 			p = strchr(value, ':');
 			if (p && *(p+1) == ':') {
 				g_config.bp3 = 0;
@@ -569,7 +570,6 @@ void parse_config_line(char* line)
 			}
 		}
 		else if (!stricmp(key, "bp4")) {
-			char *p;
 			p = strchr(value, ':');
 			if (p && *(p+1) == ':') {
 				g_config.bp4 = 0;

@@ -267,6 +267,7 @@ hook_t full_hooks[] = {
 	HOOK(ntdll, RtlCreateUserProcess),
 	HOOK(ntdll, NtOpenProcess),
 	HOOK(ntdll, NtTerminateProcess),
+	HOOK(ntdll, RtlReportSilentProcessExit),
 	HOOK(ntdll, NtResumeProcess),
 	HOOK(ntdll, NtCreateSection),
 	HOOK(ntdll, NtDuplicateObject),
@@ -692,6 +693,7 @@ hook_t min_hooks[] = {
 	HOOK(ntdll, NtResumeThread),
 	HOOK(ntdll, NtResumeProcess),
 	HOOK(ntdll, NtTerminateProcess),
+	HOOK(ntdll, RtlReportSilentProcessExit),
 
 	HOOK(ntdll, NtDuplicateObject),
 
@@ -923,6 +925,7 @@ hook_t office_hooks[] = {
 	HOOK(ntdll, RtlCreateUserProcess),
 	HOOK(ntdll, NtOpenProcess),
 	HOOK(ntdll, NtTerminateProcess),
+	HOOK(ntdll, RtlReportSilentProcessExit),
 	HOOK(ntdll, NtResumeProcess),
 	HOOK(ntdll, NtCreateSection),
 	HOOK(ntdll, NtDuplicateObject),
@@ -1330,6 +1333,7 @@ hook_t ie_hooks[] = {
 	HOOK(ntdll, NtResumeThread),
 	HOOK(ntdll, NtResumeProcess),
 	HOOK(ntdll, NtTerminateProcess),
+	HOOK(ntdll, RtlReportSilentProcessExit),
 
 	HOOK(ntdll, NtDuplicateObject),
 
@@ -1378,7 +1382,7 @@ BOOL set_hooks_dll(const wchar_t *library)
 	BOOL ret = FALSE;
 	for (unsigned int i = 0; i < hooks_arraysize; i++) {
 		if (!wcsicmp((hooks+i)->library, library)) {
-			BOOL ret = TRUE;
+			ret = TRUE;
 			if (hook_api(hooks+i, g_config.hook_type) < 0)
 				pipe("WARNING:Unable to hook %z", (hooks+i)->funcname);
 		}
@@ -1429,7 +1433,7 @@ void set_hooks()
 	BOOL Wow64Process;
 	OSVERSIONINFO OSVersion;
 	THREADENTRY32 threadInfo;
-	DWORD i, old_protect, num_suspended_threads = 0;
+	DWORD old_protect, num_suspended_threads = 0;
 	PHANDLE suspended_threads = (PHANDLE)calloc(4096, sizeof(HANDLE));
 	DWORD our_tid = GetCurrentThreadId();
 	DWORD our_pid = GetCurrentProcessId();
@@ -1554,12 +1558,12 @@ void set_hooks()
 			g_config.minhook = 1;
 			DebugOutput("services.exe hook set enabled\n");
 		}
-		else if (!_stricmp(our_process_name, "svchost.exe") && wcsstr(our_commandline, L"-k DcomLaunch")) {
+		else if (!_stricmp(our_process_name, "svchost.exe") && wcsstr(our_commandline, L"-k DcomLaunch") || wcsstr(our_commandline, L"-k netsvcs")) {
 			g_config.yarascan = 0;
 			g_config.caller_dump = 0;
 			g_config.injection = 0;
 			g_config.minhook = 1;
-			DebugOutput("DCOM service hook set enabled\n");
+			DebugOutput("Service host hook set enabled\n");
 		}
 		else if (!_stricmp(our_process_name, "wscript.exe")) {
 			const char *excluded_apis[] = {
@@ -1643,7 +1647,7 @@ void set_hooks()
 		}
 	} while (Thread32Next(hSnapShot, &threadInfo));
 
-	for (i = 0; i < hooks_arraysize; i++) {
+	for (unsigned int i = 0; i < hooks_arraysize; i++) {
 #ifndef _WIN64
 		if ((OSVersion.dwMajorVersion == 6 && OSVersion.dwMinorVersion > 1) || OSVersion.dwMajorVersion > 6) {
 			if (Wow64Process == FALSE) {
@@ -1657,7 +1661,7 @@ void set_hooks()
 			pipe("WARNING:Unable to hook %z", (hooks+i)->funcname);
 	}
 
-	for (i = 0; i < num_suspended_threads; i++) {
+	for (unsigned int i = 0; i < num_suspended_threads; i++) {
 		ResumeThread(suspended_threads[i]);
 		CloseHandle(suspended_threads[i]);
 	}

@@ -1027,6 +1027,11 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 	__in	  NTSTATUS ExitStatus
 );
 
+HOOKDEF(NTSTATUS, WINAPI,  RtlReportSilentProcessExit,
+	__in_opt  HANDLE ProcessHandle,
+	__in	  NTSTATUS ExitStatus
+);
+
 HOOKDEF(NTSTATUS, WINAPI, NtResumeProcess,
 	__in  HANDLE ProcessHandle
 );
