@@ -53,6 +53,9 @@ void resolve_runtime_apis(void)
 {
 	HMODULE ntdllbase = GetModuleHandle("ntdll");
 
+	if (!ntdllbase)
+		return;
+
 	*(FARPROC *)&pNtDelayExecution = GetProcAddress(ntdllbase, "NtDelayExecution");
 	*(FARPROC *)&pNtQuerySystemInformation = GetProcAddress(ntdllbase, "NtQuerySystemInformation");
 	*(FARPROC *)&pNtQueryInformationProcess = GetProcAddress(ntdllbase, "NtQueryInformationProcess");
@@ -663,6 +666,9 @@ DWORD random()
 	DWORD ret, realret;
 	lasterror_t lasterror;
 
+	if (!pRtlGenRandom)
+		return 0;
+
 	get_lasterrors(&lasterror);
 
 	realret = pRtlGenRandom(&ret, sizeof(ret)) ? ret : rand();
@@ -1186,7 +1192,7 @@ wchar_t *get_full_keyvalue_pathW(HKEY registry, const wchar_t *in, PKEY_NAME_INF
 wchar_t *get_full_keyvalue_pathUS(HKEY registry, const PUNICODE_STRING in, PKEY_NAME_INFORMATION keybuf, unsigned int len)
 {
 	wchar_t *ret;
-	if (in && in->Length) {
+	if (in && in->Buffer && in->Length) {
 		unsigned int newlen = get_encoded_unicode_string_len(in->Buffer, in->Length);
 		wchar_t *incpy = malloc(newlen + (1 * sizeof(wchar_t)));
 		copy_encoded_unicode_string(incpy, in->Buffer, in->Length, newlen);
@@ -1395,9 +1401,11 @@ static PSID GetSID(void)
 			CloseHandle(token);
 			return NULL;
 		}
+		CloseHandle(token);
+		return userinfo->User.Sid;
 	}
 	CloseHandle(token);
-	return userinfo->User.Sid;
+	return NULL;
 }
 
 void hkcu_init(void)
@@ -1477,7 +1485,11 @@ void specialname_map_init(void)
 		}
 	}
 
-	GetWindowsDirectoryA(buf, MAX_PATH);
+	if (!GetWindowsDirectoryA(buf, MAX_PATH)) {
+		DebugOutput("specialname_map_init: Unable to query Windows directory");
+		return;
+	}
+
 	g_targetnames_a[idx] = strdup("\\systemroot");
 	g_specialnames_a[idx] = strdup(buf);
 	idx++;

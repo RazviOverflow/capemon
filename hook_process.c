@@ -47,7 +47,7 @@ extern lookup_t g_caller_regions;
 extern HANDLE g_terminate_event_handle;
 extern BOOL CAPEExceptionDispatcher(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT Context);
 extern void file_handle_terminate();
-extern int DoProcessDump(PVOID CallerBase);
+extern int DoProcessDump();
 extern PVOID GetHookCallerBase();
 extern BOOL ProcessDumped;
 extern HANDLE DebuggerLog;
@@ -170,7 +170,6 @@ HOOKDEF(NTSTATUS, WINAPI, NtCreateProcessEx,
 	LOQ_ntstatus("process", "PphOhhl", "ProcessHandle", ProcessHandle, "ParentHandle", ParentProcess, "DesiredAccess", DesiredAccess,
 		"FileName", ObjectAttributes, "Flags", Flags, "SectionHandle", SectionHandle, "ProcessId", pid);
 	if (!g_config.single_process && NT_SUCCESS(ret)) {
-		DWORD pid = pid_from_process_handle(*ProcessHandle);
 		ProcessMessage(pid, 0);
 		disable_sleep_skip();
 	}
@@ -485,7 +484,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 
 	if (process_shutting_down && g_config.procdump && !ProcessDumped) {
 		DebugOutput("NtTerminateProcess hook: Attempting to dump process %d\n", GetCurrentProcessId());
-		DoProcessDump(GetHookCallerBase());
+		DoProcessDump();
 	}
 
 	if (Pid)
@@ -493,6 +492,21 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 
 	set_lasterrors(&lasterror);
 	ret = Old_NtTerminateProcess(ProcessHandle, ExitStatus);
+	return ret;
+}
+
+// We typically don't want WER to spawn werfault.exe in the sandbox
+#define ALLOW_WER 0
+
+HOOKDEF(NTSTATUS, WINAPI,  RtlReportSilentProcessExit,
+	__in_opt  HANDLE ProcessHandle,
+	__in	  NTSTATUS ExitStatus
+)
+{
+	NTSTATUS ret = 0;
+	DWORD pid = pid_from_process_handle(ProcessHandle);
+	if (ALLOW_WER)
+		ret = Old_RtlReportSilentProcessExit(ProcessHandle, ExitStatus);
 	return ret;
 }
 
@@ -914,7 +928,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 	ret = Old_NtProtectVirtualMemory(ProcessHandle, BaseAddress, NumberOfBytesToProtect, NewAccessProtection, OldAccessProtection);
 
 	memset(&meminfo, 0, sizeof(meminfo));
-	if (NT_SUCCESS(ret) && OldAccessProtection && *OldAccessProtection == NewAccessProtection) {
+	if (NT_SUCCESS(ret) && BaseAddress && OldAccessProtection && *OldAccessProtection == NewAccessProtection) {
 		lasterror_t lasterrors;
 		get_lasterrors(&lasterrors);
 		VirtualQueryEx(ProcessHandle, *BaseAddress, &meminfo, sizeof(meminfo));
@@ -928,7 +942,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 		NewAccessProtection = OriginalNewAccessProtection;
 	}
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(ProcessHandle))
+	if (NT_SUCCESS(ret) && BaseAddress && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(ProcessHandle))
 	{
 		PVOID AllocationBase = GetAllocationBase(*BaseAddress);
 		if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
