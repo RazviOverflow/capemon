@@ -619,7 +619,7 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, CloseHandle),
 	HOOK(kernel32, Process32First),
 	HOOK(kernel32, Process32Next),
-	HOOK(kernel32, ExitProcess),
+	//HOOK(kernel32, ExitProcess),
 };
 
 // This hook set is intended to include only hooks which are necessary
