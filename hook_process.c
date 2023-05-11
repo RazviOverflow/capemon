@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include "ntapi.h"
 #include <tlhelp32.h>
+#include <psapi.h>
 #include "hooking.h"
 #include "log.h"
 #include "pipe.h"
@@ -37,7 +38,7 @@ extern void ErrorOutput(_In_ LPCTSTR lpOutputString, ...);
 extern struct TrackedRegion *TrackedRegionList;
 extern void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationType, ULONG Protect);
 extern void DebuggerAllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG Protect);
-extern void ProtectionHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG Protect, PULONG OldProtect);
+extern void ProtectionHandler(PVOID BaseAddress, ULONG Protect, PULONG OldProtect);
 extern void FreeHandler(PVOID BaseAddress);
 extern void ProcessTrackedRegion();
 extern void DebuggerShutdown();
@@ -125,6 +126,109 @@ HOOKDEF(BOOL, WINAPI, Module32FirstW,
 		LOQ_bool("process", "uii", "ModuleName", lpme->szModule, "ModuleID", lpme->th32ModuleID, "ProcessId", lpme->th32ProcessID);
 	else
 		LOQ_bool("process", "");
+
+	return ret;
+}
+
+HOOKDEF(UINT, WINAPI, WinExec,
+	__in LPCSTR lpCmdLine,
+	__in UINT   uCmdShow
+) {
+	UINT ret = Old_WinExec(lpCmdLine, uCmdShow);
+	LOQ_nonzero("process", "si", "CmdLine", lpCmdLine, "CmdShow", uCmdShow);
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, CreateProcessA,
+	__in_opt	LPCSTR lpApplicationName,
+	__inout_opt LPSTR lpCommandLine,
+	__in_opt	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	__in_opt	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	__in		BOOL bInheritHandles,
+	__in		DWORD dwCreationFlags,
+	__in_opt	LPVOID lpEnvironment,
+	__in_opt	LPCSTR lpCurrentDirectory,
+	__in		LPSTARTUPINFOA lpStartupInfo,
+	__out	    LPPROCESS_INFORMATION lpProcessInformation
+) {
+	BOOL ret;
+	ENSURE_STRUCT(lpProcessInformation, PROCESS_INFORMATION);
+
+	ret = Old_CreateProcessA(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes,
+		bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
+
+	if (dwCreationFlags & EXTENDED_STARTUPINFO_PRESENT && lpStartupInfo->cb == sizeof(STARTUPINFOEXA)) {
+		HANDLE ParentHandle = (HANDLE)-1;
+		unsigned int i;
+		LPSTARTUPINFOEXA lpExtStartupInfo = (LPSTARTUPINFOEXA)lpStartupInfo;
+		if (lpExtStartupInfo->lpAttributeList) {
+			for (i = 0; i < lpExtStartupInfo->lpAttributeList->Count; i++)
+				if (lpExtStartupInfo->lpAttributeList->Entries[i].Attribute == PROC_THREAD_ATTRIBUTE_PARENT_PROCESS)
+					ParentHandle = *(HANDLE *)lpExtStartupInfo->lpAttributeList->Entries[i].lpValue;
+		}
+		LOQ_bool("process", "sshiippps", "ApplicationName", lpApplicationName,
+			"CommandLine", lpCommandLine, "CreationFlags", dwCreationFlags,
+			"ProcessId", lpProcessInformation->dwProcessId,
+			"ThreadId", lpProcessInformation->dwThreadId,
+			"ParentHandle", ParentHandle,
+			"ProcessHandle", lpProcessInformation->hProcess,
+			"ThreadHandle", lpProcessInformation->hThread, "StackPivoted", is_stack_pivoted() ? "yes" : "no");
+	}
+	else {
+		LOQ_bool("process", "sshiipps", "ApplicationName", lpApplicationName,
+			"CommandLine", lpCommandLine, "CreationFlags", dwCreationFlags,
+			"ProcessId", lpProcessInformation->dwProcessId,
+			"ThreadId", lpProcessInformation->dwThreadId,
+			"ProcessHandle", lpProcessInformation->hProcess,
+			"ThreadHandle", lpProcessInformation->hThread, "StackPivoted", is_stack_pivoted() ? "yes" : "no");
+	}
+
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, CreateProcessW,
+	__in_opt	LPWSTR lpApplicationName,
+	__inout_opt LPWSTR lpCommandLine,
+	__in_opt	LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	__in_opt	LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	__in		BOOL bInheritHandles,
+	__in		DWORD dwCreationFlags,
+	__in_opt	LPVOID lpEnvironment,
+	__in_opt	LPWSTR lpCurrentDirectory,
+	__in		LPSTARTUPINFOW lpStartupInfo,
+	__out	    LPPROCESS_INFORMATION lpProcessInformation
+) {
+	BOOL ret;
+	ENSURE_STRUCT(lpProcessInformation, PROCESS_INFORMATION);
+
+	ret = Old_CreateProcessW(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes,
+		bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
+
+	if (dwCreationFlags & EXTENDED_STARTUPINFO_PRESENT && lpStartupInfo->cb == sizeof(STARTUPINFOEXW)) {
+		HANDLE ParentHandle = (HANDLE)-1;
+		unsigned int i;
+		LPSTARTUPINFOEXW lpExtStartupInfo = (LPSTARTUPINFOEXW)lpStartupInfo;
+		if (lpExtStartupInfo->lpAttributeList) {
+			for (i = 0; i < lpExtStartupInfo->lpAttributeList->Count; i++)
+				if (lpExtStartupInfo->lpAttributeList->Entries[i].Attribute == PROC_THREAD_ATTRIBUTE_PARENT_PROCESS)
+					ParentHandle = *(HANDLE *)lpExtStartupInfo->lpAttributeList->Entries[i].lpValue;
+		}
+		LOQ_bool("process", "uuhiippps", "ApplicationName", lpApplicationName,
+			"CommandLine", lpCommandLine, "CreationFlags", dwCreationFlags,
+			"ProcessId", lpProcessInformation->dwProcessId,
+			"ThreadId", lpProcessInformation->dwThreadId,
+			"ParentHandle", ParentHandle,
+			"ProcessHandle", lpProcessInformation->hProcess,
+			"ThreadHandle", lpProcessInformation->hThread, "StackPivoted", is_stack_pivoted() ? "yes" : "no");
+	}
+	else {
+		LOQ_bool("process", "uuhiipps", "ApplicationName", lpApplicationName,
+			"CommandLine", lpCommandLine, "CreationFlags", dwCreationFlags,
+			"ProcessId", lpProcessInformation->dwProcessId,
+			"ThreadId", lpProcessInformation->dwThreadId,
+			"ProcessHandle", lpProcessInformation->hProcess,
+			"ThreadHandle", lpProcessInformation->hThread, "StackPivoted", is_stack_pivoted() ? "yes" : "no");
+	}
 
 	return ret;
 }
@@ -447,7 +551,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 		LOQ_ntstatus("process", "ph", "ProcessHandle", ProcessHandle, "ExitCode", ExitStatus);
 		file_handle_terminate();
 	}
-	else if (GetCurrentProcessId() == our_getprocessid(ProcessHandle)) {
+	else if (NtCurrentProcess() == ProcessHandle) {
 		Pid = GetCurrentProcessId();
 		process_shutting_down = 1;
 		LOQ_ntstatus("process", "ph", "ProcessHandle", ProcessHandle, "ExitCode", ExitStatus);
@@ -468,13 +572,6 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 
 	if (process_shutting_down && g_config.injection)
 		TerminateHandler();
-
-	if (process_shutting_down && g_config.unpacker) {
-		DebugOutput("NtTerminateProcess hook: Processing tracked regions before shutdown (process %d).\n", GetCurrentProcessId());
-		g_terminate_event_handle = NULL;	// This tells ProcessTrackedRegions it's the final time
-		ProcessTrackedRegions();
-		ClearAllBreakpoints();
-	}
 
 	if (process_shutting_down && g_config.debugger)
 	{
@@ -701,7 +798,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtAllocateVirtualMemory,
 ) {
 	NTSTATUS ret = Old_NtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(ProcessHandle)) {
+	if (NT_SUCCESS(ret) && !called_by_hook() && NtCurrentProcess() == ProcessHandle) {
 		if (g_config.unpacker)
 			AllocationHandler(*BaseAddress, *RegionSize, AllocationType, Protect);
 
@@ -726,7 +823,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtAllocateVirtualMemoryEx,
 ) {
 	NTSTATUS ret = Old_NtAllocateVirtualMemoryEx(ProcessHandle, BaseAddress, RegionSize, AllocationType, PageProtection, Parameters, ParameterCount);
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(ProcessHandle)) {
+	if (NT_SUCCESS(ret) && !called_by_hook() && NtCurrentProcess() == ProcessHandle) {
 		if (g_config.unpacker)
 			AllocationHandler(*BaseAddress, *RegionSize, AllocationType, PageProtection);
 
@@ -907,7 +1004,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 		ModuleName = convert_address_to_dll_name_and_offset((ULONG_PTR)*BaseAddress, &DllRVA);
 
 	if (g_config.ntdll_protect && NewAccessProtection == PAGE_EXECUTE_READWRITE && BaseAddress && NumberOfBytesToProtect &&
-			GetCurrentProcessId() == our_getprocessid(ProcessHandle) && is_in_dll_range((ULONG_PTR)*BaseAddress) &&
+			NtCurrentProcess() == ProcessHandle && is_in_dll_range((ULONG_PTR)*BaseAddress) &&
 			ModuleName && !strcmp(ModuleName, "ntdll.dll")) {
 				// don't allow writes, this will cause memory access violations
 				// that we are going to handle in the RtlDispatchException hook
@@ -916,7 +1013,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 	}
 
 	memset(&meminfo, 0, sizeof(meminfo));
-	if (NewAccessProtection == PAGE_EXECUTE_READ && BaseAddress && NumberOfBytesToProtect && GetCurrentProcessId() == our_getprocessid(ProcessHandle) && is_in_dll_range((ULONG_PTR)*BaseAddress)) {
+	if (NewAccessProtection == PAGE_EXECUTE_READ && BaseAddress && NumberOfBytesToProtect && NtCurrentProcess() == ProcessHandle && is_in_dll_range((ULONG_PTR)*BaseAddress)) {
 		lasterror_t lasterrors;
 		get_lasterrors(&lasterrors);
 		VirtualQueryEx(ProcessHandle, *BaseAddress, &meminfo, sizeof(meminfo));
@@ -942,16 +1039,19 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 		NewAccessProtection = OriginalNewAccessProtection;
 	}
 
-	if (NT_SUCCESS(ret) && BaseAddress && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(ProcessHandle))
+	if (NT_SUCCESS(ret) && BaseAddress && !called_by_hook() && NtCurrentProcess() == ProcessHandle)
 	{
 		PVOID AllocationBase = GetAllocationBase(*BaseAddress);
-		if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
-		{
-			DebugOutput("NtProtectVirtualMemory: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
-			lookup_del_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase);
-		}
 		if (g_config.unpacker)
-			ProtectionHandler(*BaseAddress, *NumberOfBytesToProtect, NewAccessProtection, OldAccessProtection);
+			ProtectionHandler(*BaseAddress, NewAccessProtection, OldAccessProtection);
+		if (g_config.caller_regions)
+		{
+			if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
+			{
+				DebugOutput("NtProtectVirtualMemory: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
+				lookup_del_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase);
+			}
+		}
 	}
 
 	if (NewAccessProtection == PAGE_EXECUTE_READWRITE &&
@@ -992,7 +1092,7 @@ HOOKDEF(BOOL, WINAPI, VirtualProtectEx,
 	ModuleName = convert_address_to_dll_name_and_offset((ULONG_PTR)lpAddress, &DllRVA);
 
 	if (g_config.ntdll_protect && flNewProtect == PAGE_EXECUTE_READWRITE && lpAddress && dwSize &&
-			GetCurrentProcessId() == our_getprocessid(hProcess) && is_in_dll_range((ULONG_PTR)lpAddress) &&
+			NtCurrentProcess() == hProcess && is_in_dll_range((ULONG_PTR)lpAddress) &&
 			ModuleName && !strcmp(ModuleName, "ntdll.dll")) {
 				// don't allow writes, this will cause memory access violations
 				// that we are going to handle in the RtlDispatchException hook
@@ -1001,7 +1101,7 @@ HOOKDEF(BOOL, WINAPI, VirtualProtectEx,
 	}
 
 	memset(&meminfo, 0, sizeof(meminfo));
-	if (flNewProtect == PAGE_EXECUTE_READ && lpAddress && dwSize && GetCurrentProcessId() == our_getprocessid(hProcess) && is_in_dll_range((ULONG_PTR)lpAddress)) {
+	if (flNewProtect == PAGE_EXECUTE_READ && lpAddress && dwSize && NtCurrentProcess() == hProcess && is_in_dll_range((ULONG_PTR)lpAddress)) {
 		lasterror_t lasterrors;
 		get_lasterrors(&lasterrors);
 		VirtualQueryEx(hProcess, lpAddress, &meminfo, sizeof(meminfo));
@@ -1027,19 +1127,24 @@ HOOKDEF(BOOL, WINAPI, VirtualProtectEx,
 		flNewProtect = OriginalNewProtect;
 	}
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(hProcess))
+	if (NT_SUCCESS(ret) && !called_by_hook() && NtCurrentProcess() == hProcess)
 	{
+		char ModulePath[MAX_PATH];
 		PVOID AllocationBase = GetAllocationBase(lpAddress);
-		if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
+		BOOL MappedModule = GetMappedFileName(GetCurrentProcess(), AllocationBase, ModulePath, MAX_PATH);
+		if (g_config.unpacker && !MappedModule)
+			ProtectionHandler(lpAddress, flNewProtect, lpflOldProtect);
+		if (g_config.caller_regions)
 		{
-			DebugOutput("VirtualProtectEx: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
-			lookup_del_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase);
+			if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
+			{
+				DebugOutput("VirtualProtectEx: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
+				lookup_del_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase);
+			}
 		}
-		if (g_config.unpacker)
-			ProtectionHandler(lpAddress, dwSize, flNewProtect, lpflOldProtect);
 	}
 
-	if (flNewProtect == PAGE_EXECUTE_READWRITE && GetCurrentProcessId() == our_getprocessid(hProcess) &&
+	if (flNewProtect == PAGE_EXECUTE_READWRITE && NtCurrentProcess() == hProcess &&
 		(ULONG_PTR)meminfo.AllocationBase >= get_stack_bottom() && (((ULONG_PTR)meminfo.AllocationBase + meminfo.RegionSize) <= get_stack_top())) {
 		LOQ_bool("process", "ppphhHss", "ProcessHandle", hProcess, "Address", lpAddress,
 			"Size", dwSize, "MemType", meminfo.Type, "Protection", flNewProtect, "OldProtection", lpflOldProtect, "StackPivoted", is_stack_pivoted() ? "yes" : "no", "IsStack", "yes");
@@ -1065,7 +1170,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtFreeVirtualMemory,
 	IN OUT  PSIZE_T RegionSize,
 	IN	  ULONG FreeType
 ) {
-	if (g_config.unpacker && !called_by_hook() && GetCurrentProcessId() == our_getprocessid(ProcessHandle) && *RegionSize == 0 && (FreeType & MEM_RELEASE))
+	if (g_config.unpacker && !called_by_hook() && NtCurrentProcess() == ProcessHandle && *RegionSize == 0 && (FreeType & MEM_RELEASE))
 		FreeHandler(*BaseAddress);
 
 	NTSTATUS ret = Old_NtFreeVirtualMemory(ProcessHandle, BaseAddress,

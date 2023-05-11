@@ -23,13 +23,14 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 #include "..\misc.h"
 #include "Debugger.h"
 #include "CAPE.h"
+#include "YaraHarness.h"
 #include <psapi.h>
 #include <intrin.h>
 
 #define MAX_INSTRUCTIONS 0x10
 #define MAX_DUMP_SIZE 0x1000000
 #define CHUNKSIZE 0x10
-#define RVA_LIMIT 0x200000
+#define RVA_LIMIT 0x2000000
 #define DoClearZeroFlag 1
 #define DoSetZeroFlag   2
 #define PrintEAX		3
@@ -39,6 +40,7 @@ extern void ErrorOutput(_In_ LPCTSTR lpOutputString, ...);
 extern void DebuggerOutput(_In_ LPCTSTR lpOutputString, ...);
 extern int DumpImageInCurrentProcess(LPVOID ImageBase);
 extern int DumpMemory(LPVOID Buffer, SIZE_T Size);
+extern PCHAR GetNameBySsn(unsigned int Number);
 extern void log_anomaly(const char *subcategory, const char *msg);
 extern char *convert_address_to_dll_name_and_offset(ULONG_PTR addr, unsigned int *offset);
 extern BOOL is_in_dll_range(ULONG_PTR addr);
@@ -94,6 +96,32 @@ VOID TraceOutputFuncName(PVOID Address, _DecodedInst DecodedInstruction, char* F
 VOID TraceOutputFuncAddress(PVOID Address, _DecodedInst DecodedInstruction, PVOID FuncAddress)
 {
 	DebuggerOutput("0x%p  %-24s %-6s%-4s0x%-28p", Address, (char*)_strupr(DecodedInstruction.instructionHex.p), (char*)DecodedInstruction.mnemonic.p, DecodedInstruction.operands.length != 0 ? " " : "", FuncAddress);
+}
+
+void DoTraceOutput(PVOID Address)
+{
+	_DecodeType DecodeType;
+	_DecodeResult Result;
+	_OffsetType Offset = 0;
+	_DecodedInst DecodedInstruction;
+	unsigned int DecodedInstructionsCount = 0;
+
+#ifdef _WIN64
+	DecodeType = Decode64Bits;
+#else
+	DecodeType = Decode32Bits;
+#endif
+
+	if (!Address)
+		return;
+
+	Result = distorm_decode(Offset, (const unsigned char*)Address, CHUNKSIZE, DecodeType, &DecodedInstruction, 1, &DecodedInstructionsCount);
+
+	if (!DecodedInstruction.size)
+		return;
+
+	TraceOutput(Address, DecodedInstruction);
+	DebuggerOutput("\n");
 }
 
 SIZE_T StrTest(PCHAR StrCandidate, PCHAR OutputBuffer, SIZE_T BufferSize)
@@ -386,14 +414,20 @@ void ActionDispatcher(struct _EXCEPTION_POINTERS* ExceptionInfo, _DecodedInst De
 #endif
 					}
 				}
-#ifdef DEBUG_COMMENTS
 				else
+                {
+                    TargetSet = TRUE;
+#ifdef DEBUG_COMMENTS
 					DebuggerOutput("ActionDispatcher: Target 0x%p (%s).\n", Target, p+1);
 #endif
+                }
 			}
-			*q = '\0';
-			Target = GetRegister(ExceptionInfo->ContextRecord, p+1);
-			*q = ':';
+			if (!TargetSet)
+			{
+                *q = '\0';
+                Target = GetRegister(ExceptionInfo->ContextRecord, p+1);
+                *q = ':';
+			}
 			if (Target)
 			{
 				TargetSet = TRUE;
@@ -813,7 +847,7 @@ void ActionDispatcher(struct _EXCEPTION_POINTERS* ExceptionInfo, _DecodedInst De
 		else if (strlen(g_config.typestring3))
 			CapeMetaData->TypeString = g_config.typestring3;
 
-		if (DumpImageInCurrentProcess(CallingModule))
+		if (DumpRegion(CallingModule))
 			DebuggerOutput("ActionDispatcher: Dumped breaking module at 0x%p.\n", CallingModule);
 		else
 			DebuggerOutput("ActionDispatcher: Failed to dump breaking module at 0x%p.\n", CallingModule);
@@ -907,6 +941,48 @@ void ActionDispatcher(struct _EXCEPTION_POINTERS* ExceptionInfo, _DecodedInst De
 		DumpAddress = 0;
 		DumpSize = 0;
 	}
+	else if (!stricmp(Action, "Scan"))
+	{
+		PVOID ScanAddress = GetAllocationBase(CIP);
+		if (Target)
+			ScanAddress = GetAllocationBase(Target);
+		DebuggerOutput("ActionDispatcher: Scanning region at 0x%p.\n", ScanAddress);
+		YaraScan(ScanAddress, GetAccessibleSize(ScanAddress));
+	}
+	else if (!stricmp(Action, "DumpStack"))
+	{
+		unsigned int Offset;
+#ifdef _WIN64
+		ULONG_PTR* Stack = (PVOID)ExceptionInfo->ContextRecord->Rsp;
+		ULONG_PTR Frame = (ULONG_PTR)ExceptionInfo->ContextRecord->Rip;
+		char* DllName = convert_address_to_dll_name_and_offset(Frame, &Offset);
+#else
+		ULONG_PTR* Stack = (PVOID)ExceptionInfo->ContextRecord->Esp;
+		ULONG_PTR Frame = (ULONG_PTR)ExceptionInfo->ContextRecord->Ebp;
+		char* DllName = convert_address_to_dll_name_and_offset((ULONG_PTR)ExceptionInfo->ContextRecord->Eip, &Offset);
+#endif
+		unsigned int StackRange = (int)(get_stack_top() - (ULONG_PTR)Stack)/sizeof(ULONG_PTR);
+		if ((StackRange > 100) && is_valid_address_range((ULONG_PTR)Stack, 100))
+		{
+			for (unsigned int i = 0; i < 100; i++) {
+				DllName = NULL;
+				if (Stack[i]) {
+					DllName = convert_address_to_dll_name_and_offset(Stack[i], &Offset);
+					if (&Stack[i] == (ULONG_PTR*)(Frame + sizeof(ULONG_PTR))) {
+						Frame = *(ULONG_PTR*)Frame;
+						if (DllName)
+							DebuggerOutput("0x%p:\t 0x%p - %s::0x%x\t<========>\n", &Stack[i], Stack[i], DllName, Offset);
+						else if (IsAddressAccessible((PVOID)Stack[i]))
+							DebuggerOutput("0x%p:\t 0x%p\t<========>\n", &Stack[i], Stack[i]);
+					}
+					else if (DllName)
+						DebuggerOutput("0x%p:\t 0x%p - %s::0x%x\n", &Stack[i], Stack[i], DllName, Offset);
+					else if (IsAddressAccessible((PVOID)Stack[i]))
+						DebuggerOutput("0x%p:\t 0x%p\n", &Stack[i], Stack[i]);
+				}
+			}
+		}
+	}
 	else if (stricmp(Action, "custom"))
 		DebuggerOutput("ActionDispatcher: Unrecognised action: (%s)\n", Action);
 
@@ -925,6 +1001,7 @@ BOOL DoStepOver(PCHAR FunctionName)
 		"LdrUnlockLoaderLock",
 		"RtlAcquirePebLock",
 		"RtlReleasePebLock",
+		"RtlAcquireSRWLockExclusive",
 		NULL
 	};
 
@@ -1800,6 +1877,27 @@ BOOL Trace(struct _EXCEPTION_POINTERS* ExceptionInfo)
 //		}
 //	}
 #endif
+#ifdef _WIN64
+	else if (!strcmp(DecodedInstruction.mnemonic.p, "SYSCALL"))
+	{
+        if (!FilterTrace)
+		{
+			PCHAR FunctionName = GetNameBySsn((unsigned int)ExceptionInfo->ContextRecord->Rax);
+#else
+	else if (!strcmp(DecodedInstruction.mnemonic.p, "SYSENTER"))
+	{
+        if (!FilterTrace)
+		{
+			PCHAR FunctionName = GetNameBySsn((unsigned int)ExceptionInfo->ContextRecord->Eax);
+#endif
+			if (FunctionName)
+				DebuggerOutput("0x%p  %-24s %-6s%-3s%-30s", CIP, (char*)_strupr(DecodedInstruction.instructionHex.p), (char*)DecodedInstruction.mnemonic.p, "", FunctionName);
+			else
+				TraceOutput(CIP, DecodedInstruction);
+		}
+		ReturnAddress = (PVOID)((PUCHAR)CIP + DecodedInstruction.size);
+		ForceStepOver = TRUE;
+	}
     else if (!strcmp(DecodedInstruction.mnemonic.p, "PUSHF") || !strcmp(DecodedInstruction.mnemonic.p, "POPF"))
     {
         if (!FilterTrace)
@@ -1975,7 +2073,7 @@ BOOL BreakpointCallback(PBREAKPOINTINFO pBreakpointInfo, struct _EXCEPTION_POINT
 #ifdef DEBUG_COMMENTS
 		DebugOutput("BreakpointCallback: Clearing step-over register %d\n", StepOverRegister);
 #endif
-		ContextClearBreakpoint(ExceptionInfo->ContextRecord, pBreakpointInfo);
+		ContextClearBreakpoint(ExceptionInfo->ContextRecord, pBreakpointInfo->Register);
 		StepOverRegister = 0;
 	}
 	else for (bp = 0; bp < NUMBER_OF_DEBUG_REGISTERS; bp++)

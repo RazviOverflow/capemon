@@ -42,6 +42,7 @@ extern void TestDebugOutput(_In_ LPCTSTR lpOutputString, ...);
 extern void ErrorOutput(_In_ LPCTSTR lpOutputString, ...);
 extern PVOID get_process_image_base(HANDLE process_handle);
 extern wchar_t *our_dll_path_w;
+extern char *our_process_name;
 extern void hook_disable();
 extern void hook_enable();
 
@@ -605,6 +606,9 @@ BOOL CheckDontMonitorList(WCHAR* TargetProcess)
 	if (g_config.iexplore && !wcsicmp(TargetProcess, L"C:\\Program Files (x86)\\Internet Explorer\\iexplore.exe"))
 		return TRUE;
 
+	if (!_stricmp(our_process_name, "svchost.exe") && wcsstr(our_commandline, L"-k WerSvcGroup"))
+		return TRUE;
+
 	if (!g_config.file_of_interest || !g_config.suspend_logging)
 		return FALSE;
 
@@ -1095,21 +1099,6 @@ void TerminateHandler()
 	while (CurrentInjectionInfo && CurrentInjectionInfo->ProcessHandle && CurrentInjectionInfo->ProcessId)
 	{
 		DumpSectionViewsForPid(CurrentInjectionInfo->ProcessId);
-
-		if (CurrentInjectionInfo->ImageBase && !CurrentInjectionInfo->ImageDumped)
-		{
-			CapeMetaData->DumpType = INJECTION_PE;
-			CapeMetaData->TargetPid = CurrentInjectionInfo->ProcessId;
-
-			DebugOutput("TerminateHandler: Dumping hollowed process %d, image base 0x%p.\n", CurrentInjectionInfo->ProcessId, CurrentInjectionInfo->ImageBase);
-
-			CurrentInjectionInfo->ImageDumped = DumpProcess(CurrentInjectionInfo->ProcessHandle, (PVOID)CurrentInjectionInfo->ImageBase, (PVOID)CurrentInjectionInfo->EntryPoint, FALSE);
-
-			if (CurrentInjectionInfo->ImageDumped)
-				DebugOutput("TerminateHandler: Dumped PE image.\n");
-			else
-				DebugOutput("TerminateHandler: Failed to dump PE image.\n");
-		}
 
 		CurrentInjectionInfo = CurrentInjectionInfo->NextInjectionInfo;
 	}

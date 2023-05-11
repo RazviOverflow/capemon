@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "misc.h"
 #include "hooking.h"
 #include "hooks.h"
+#include "hook_sleep.h"
 #include "pipe.h"
 
 extern char *our_process_name;
@@ -287,6 +288,9 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, Process32NextW),
 	HOOK(kernel32, Module32FirstW),
 	HOOK(kernel32, Module32NextW),
+	HOOK(kernel32, CreateProcessA),
+	HOOK(kernel32, CreateProcessW),
+	HOOK(kernel32, WinExec),
 	//HOOK(kernel32, VirtualFreeEx),
 	// all variants of ShellExecute end up in ShellExecuteExW
 	HOOK(shell32, ShellExecuteExW),
@@ -943,6 +947,9 @@ hook_t office_hooks[] = {
 	HOOK(kernel32, Process32NextW),
 	HOOK(kernel32, Module32FirstW),
 	HOOK(kernel32, Module32NextW),
+	HOOK(kernel32, CreateProcessA),
+	HOOK(kernel32, CreateProcessW),
+	HOOK(kernel32, WinExec),
 	//HOOK(kernel32, VirtualFreeEx),
 	// all variants of ShellExecute end up in ShellExecuteExW
 	HOOK(shell32, ShellExecuteExW),
@@ -1227,41 +1234,6 @@ hook_t office_hooks[] = {
 	HOOK(ncrypt, NCryptImportKey),
 	HOOK(ncrypt, NCryptDecrypt),
 	HOOK(ncrypt, NCryptEncrypt),
-	// needed due to the DLL being delay-loaded in some cases
-	HOOK(cryptsp, CryptAcquireContextA),
-	HOOK(cryptsp, CryptAcquireContextW),
-	HOOK(cryptsp, CryptProtectData),
-	HOOK(cryptsp, CryptUnprotectData),
-	HOOK(cryptsp, CryptProtectMemory),
-	HOOK(cryptsp, CryptUnprotectMemory),
-	HOOK(cryptsp, CryptDecrypt),
-	HOOK(cryptsp, CryptEncrypt),
-	HOOK(cryptsp, CryptHashData),
-	HOOK(cryptsp, CryptDecodeMessage),
-	HOOK(cryptsp, CryptDecryptMessage),
-	HOOK(cryptsp, CryptEncryptMessage),
-	HOOK(cryptsp, CryptHashMessage),
-	HOOK(cryptsp, CryptExportKey),
-	HOOK(cryptsp, CryptGenKey),
-	HOOK(cryptsp, CryptCreateHash),
-	HOOK(cryptsp, CryptEnumProvidersA),
-	HOOK(cryptsp, CryptEnumProvidersW),
-	HOOK(cryptsp, CryptHashSessionKey),
-	HOOK(cryptsp, CryptGenRandom),
-	HOOK(cryptsp, CryptImportKey),
-	
-	// Extension hooks
-	/*
-	HOOK(kernel32, GetProcAddress), // process
-	HOOK(kernel32, GetModuleHandleA), // misc
-	HOOK(kernel32, GetModuleHandleW), // misc
-	HOOK(kernel32, Sleep), // thread
-	HOOK(kernel32, CreateMutexA), // sync
-	HOOK(kernel32, CreateMutexW), // sync
-	HOOK(kernel32, GetVolumeInformationA), // file
-	HOOK(kernel32, GetVolumeInformationW), // file
-	HOOK(kernel32, OpenThread), // process
-	*/
 };
 
 hook_t ie_hooks[] = {
@@ -1452,33 +1424,36 @@ void set_hooks()
 #ifndef _WIN64
 		if (!_stricmp(our_process_name, "firefox.exe"))
         {
-            g_config.firefox = 1;
-            g_config.injection = 0;
-            g_config.compression = 0;
-            g_config.caller_dump = 0;
-            g_config.api_rate_cap = 0;
-            g_config.yarascan = 0;
-            g_config.ntdll_protect = 0;
-            DebugOutput("Firefox-specific hook-set enabled.\n");
+			g_config.firefox = 1;
+			g_config.injection = 0;
+			g_config.unpacker = 0;
+			g_config.caller_regions = 0;
+			g_config.api_rate_cap = 0;
+			g_config.procmemdump = 0;
+			g_config.yarascan = 0;
+			g_config.ntdll_protect = 0;
+			DebugOutput("Firefox-specific hook-set enabled.\n");
         }
 		else
 #endif
 		if (!_stricmp(our_process_name, "iexplore.exe"))
         {
-            g_config.iexplore = 1;
-            g_config.injection = 0;
-            g_config.compression = 0;
-            g_config.api_rate_cap = 0;
-            g_config.ntdll_protect = 0;
-            g_config.yarascan = 0;
-            DebugOutput("Internet Explorer-specific hook-set enabled.\n");
+			g_config.iexplore = 1;
+			g_config.injection = 0;
+			g_config.api_rate_cap = 0;
+			g_config.ntdll_protect = 0;
+			g_config.procmemdump = 0;
+			g_config.yarascan = 0;
+			DebugOutput("Internet Explorer-specific hook-set enabled.\n");
         }
 
 		if (strstr(our_process_path, "Microsoft Office"))
         {
 			g_config.office = 1;
-			g_config.caller_dump = 0;
+			g_config.unpacker = 0;
+			g_config.caller_regions = 0;
 			g_config.injection = 0;
+			g_config.procmemdump = 0;
 			g_config.yarascan = 0;
 			g_config.ntdll_protect = 0;
 			DebugOutput("Microsoft Office settings enabled.\n");
@@ -1547,22 +1522,29 @@ void set_hooks()
 				}
 			}
 			g_config.ntdll_protect = 0;
+			g_config.procmemdump = 0;
 			g_config.yarascan = 0;
 			g_config.msi = 1;
 			DebugOutput("MsiExec hook set enabled\n");
 		}
 		else if (!_stricmp(our_process_name, "services.exe")) {
+			g_config.procmemdump = 0;
 			g_config.yarascan = 0;
-			g_config.caller_dump = 0;
+			g_config.unpacker = 0;
+			g_config.caller_regions = 0;
 			g_config.injection = 0;
 			g_config.minhook = 1;
+			disable_sleep_skip();
 			DebugOutput("services.exe hook set enabled\n");
 		}
 		else if (!_stricmp(our_process_name, "svchost.exe") && wcsstr(our_commandline, L"-k DcomLaunch") || wcsstr(our_commandline, L"-k netsvcs")) {
+			g_config.procmemdump = 0;
 			g_config.yarascan = 0;
-			g_config.caller_dump = 0;
+			g_config.unpacker = 0;
+			g_config.caller_regions = 0;
 			g_config.injection = 0;
 			g_config.minhook = 1;
+			disable_sleep_skip();
 			DebugOutput("Service host hook set enabled\n");
 		}
 		else if (!_stricmp(our_process_name, "wscript.exe")) {

@@ -23,6 +23,7 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 #include "..\alloc.h"
 #include "..\config.h"
 #include "..\pipe.h"
+#include "CAPE.h"
 #include "Debugger.h"
 #include "Unpacker.h"
 
@@ -61,7 +62,6 @@ extern int StepOverRegister;
 extern int process_shutting_down;
 extern HANDLE DebuggerLog;
 
-DWORD MainThreadId;
 struct ThreadBreakpoints *MainThreadBreakpointList;
 GUARD_PAGE_HANDLER GuardPageHandler;
 unsigned int TrapIndex, DepthCount;
@@ -75,15 +75,11 @@ void ApplyQueuedBreakpoints();
 PTHREADBREAKPOINTS GetThreadBreakpoints(DWORD ThreadId)
 //**************************************************************************************
 {
-	DWORD CurrentThreadId;
-
 	PTHREADBREAKPOINTS CurrentThreadBreakpoints = MainThreadBreakpointList;
 
 	while (CurrentThreadBreakpoints)
 	{
-		CurrentThreadId = GetThreadId(CurrentThreadBreakpoints->ThreadHandle);
-
-		if (CurrentThreadId == ThreadId)
+		if (CurrentThreadBreakpoints->ThreadId == ThreadId)
 			return CurrentThreadBreakpoints;
 		else
 			CurrentThreadBreakpoints = CurrentThreadBreakpoints->NextThreadBreakpoints;
@@ -132,46 +128,45 @@ PTHREADBREAKPOINTS CreateThreadBreakpoints(DWORD ThreadId, HANDLE Handle)
 			return NULL;
 		}
 
-		memset(MainThreadBreakpointList, 0, sizeof(struct ThreadBreakpoints));
+		CurrentThreadBreakpoints = MainThreadBreakpointList;
 
-		MainThreadBreakpointList->ThreadId = MainThreadId;
+		memset(CurrentThreadBreakpoints, 0, sizeof(struct ThreadBreakpoints));
 	}
-
-	CurrentThreadBreakpoints = MainThreadBreakpointList;
-
-	while (CurrentThreadBreakpoints)
+	else
 	{
-		if (CurrentThreadBreakpoints->ThreadHandle && GetThreadId(CurrentThreadBreakpoints->ThreadHandle) == ThreadId)
+		CurrentThreadBreakpoints = MainThreadBreakpointList;
+
+		while (CurrentThreadBreakpoints)
 		{
+			if (CurrentThreadBreakpoints->ThreadId && CurrentThreadBreakpoints->ThreadId == ThreadId)
+			{
 #ifdef DEBUG_COMMENTS
-			DebugOutput("CreateThreadBreakpoints error: found an existing thread breakpoint list for ThreadId 0x%x\n", ThreadId);
+				DebugOutput("CreateThreadBreakpoints error: found an existing thread breakpoint list for ThreadId %d\n", ThreadId);
 #endif
-			return NULL;
+				return NULL;
+			}
+
+			PreviousThreadBreakpoint = CurrentThreadBreakpoints;
+			CurrentThreadBreakpoints = CurrentThreadBreakpoints->NextThreadBreakpoints;
 		}
 
-		if ((CurrentThreadBreakpoints->ThreadId) == ThreadId)
-			break;
-
-		PreviousThreadBreakpoint = CurrentThreadBreakpoints;
-		CurrentThreadBreakpoints = CurrentThreadBreakpoints->NextThreadBreakpoints;
-	}
-
-	if (!CurrentThreadBreakpoints && PreviousThreadBreakpoint)
-	{
-		// We haven't found it in the linked list, so create a new one
-		CurrentThreadBreakpoints = PreviousThreadBreakpoint;
-
-		CurrentThreadBreakpoints->NextThreadBreakpoints = ((struct ThreadBreakpoints*)malloc(sizeof(struct ThreadBreakpoints)));
-
-		if (CurrentThreadBreakpoints->NextThreadBreakpoints == NULL)
+		if (!CurrentThreadBreakpoints && PreviousThreadBreakpoint)
 		{
-			DebugOutput("CreateThreadBreakpoints: Failed to allocate new thread breakpoints.\n");
-			return NULL;
+			// We haven't found it in the linked list, so create a new one
+			CurrentThreadBreakpoints = PreviousThreadBreakpoint;
+
+			CurrentThreadBreakpoints->NextThreadBreakpoints = ((struct ThreadBreakpoints*)malloc(sizeof(struct ThreadBreakpoints)));
+
+			if (CurrentThreadBreakpoints->NextThreadBreakpoints == NULL)
+			{
+				DebugOutput("CreateThreadBreakpoints: Failed to allocate new thread breakpoints.\n");
+				return NULL;
+			}
+
+			memset(CurrentThreadBreakpoints->NextThreadBreakpoints, 0, sizeof(struct ThreadBreakpoints));
+
+			CurrentThreadBreakpoints = CurrentThreadBreakpoints->NextThreadBreakpoints;
 		}
-
-		memset(CurrentThreadBreakpoints->NextThreadBreakpoints, 0, sizeof(struct ThreadBreakpoints));
-
-		CurrentThreadBreakpoints = CurrentThreadBreakpoints->NextThreadBreakpoints;
 	}
 
 	if (!CurrentThreadBreakpoints)
@@ -221,6 +216,14 @@ BOOL InitNewThreadBreakpoints(DWORD ThreadId, HANDLE Handle)
 	if (MainThreadBreakpointList == NULL)
 	{
 		DebugOutput("InitNewThreadBreakpoints: Failed to create thread breakpoints struct.\n");
+		return FALSE;
+	}
+
+	if (GetThreadBreakpoints(ThreadId))
+	{
+#ifdef DEBUG_COMMENTS
+		DebugOutput("InitNewThreadBreakpoints: Thread breakpoints already exists for thread %d.\n", ThreadId);
+#endif
 		return FALSE;
 	}
 
@@ -409,7 +412,6 @@ LONG WINAPI CAPEExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 {
 	unsigned int bp;
 	BREAKPOINT_HANDLER Handler;
-	PTRACKEDREGION TrackedRegion;
 
 	// Hardware breakpoints generate EXCEPTION_SINGLE_STEP rather than EXCEPTION_BREAKPOINT
 	if (g_config.debugger && ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP)
@@ -436,8 +438,15 @@ LONG WINAPI CAPEExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 			if (SingleStepHandler)
 				SingleStepHandler(ExceptionInfo);
 			else
+			{
 				// Unhandled single-step exception, pass it on
+				if (BreakpointsSet)
+					ContextClearDebugRegisters(ExceptionInfo->ContextRecord);
 				return EXCEPTION_CONTINUE_SEARCH;
+			}
+
+			if (BreakpointsSet)
+				ContextClearDebugRegisters(ExceptionInfo->ContextRecord);
 
 			return EXCEPTION_CONTINUE_EXECUTION;
 		}
@@ -536,7 +545,7 @@ LONG WINAPI CAPEExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 #ifdef DEBUG_COMMENTS
 				DebugOutput("CAPEExceptionFilter: Clearing breakpoint %d due to hit count.\n", pBreakpointInfo->Register);
 #endif
-				ContextClearBreakpoint(ExceptionInfo->ContextRecord, pBreakpointInfo);
+				ContextClearBreakpoint(ExceptionInfo->ContextRecord, pBreakpointInfo->Register);
 				//ApplyQueuedBreakpoints(ExceptionInfo->ContextRecord, pBreakpointInfo);
 			}
 		}
@@ -558,58 +567,10 @@ LONG WINAPI CAPEExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 				Handler(pBreakpointInfo, ExceptionInfo);
 		}
 
+		if (BreakpointsSet)
+			ContextClearDebugRegisters(ExceptionInfo->ContextRecord);
+
 		return EXCEPTION_CONTINUE_EXECUTION;
-	}
-	// Page guard violations generate STATUS_GUARD_PAGE_VIOLATION
-	else if (g_config.debugger && ExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION)
-	{
-		if (g_config.unpacker)
-		{
-			if (ExceptionInfo->ExceptionRecord->NumberParameters < 2)
-			{
-				DebugOutput("CAPEExceptionFilter: Guard page exception with missing parameters, passing.\n");
-				return EXCEPTION_CONTINUE_SEARCH;
-			}
-
-#ifdef DEBUG_COMMENTS
-			DebugOutput("CAPEExceptionFilter: guarded page access at 0x%x by 0x%x\n", ExceptionInfo->ExceptionRecord->ExceptionInformation[1], ExceptionInfo->ExceptionRecord->ExceptionAddress);
-#endif
-
-			if (TrackedRegion = GetTrackedRegion((PVOID)ExceptionInfo->ExceptionRecord->ExceptionInformation[1]))
-			{
-				if (is_address_in_ntdll((ULONG_PTR)ExceptionInfo->ExceptionRecord->ExceptionAddress))
-				{
-					DWORD OldProtect;
-					if (!VirtualProtect((PVOID)ExceptionInfo->ExceptionRecord->ExceptionInformation[1], 1, TrackedRegion->Protect | PAGE_GUARD, &OldProtect))
-						DebugOutput("CAPEExceptionFilter: Failed to re-activate page guard on tracked region around 0x%x touched by ntdll.\n", ExceptionInfo->ExceptionRecord->ExceptionInformation[1]);
-
-					return EXCEPTION_CONTINUE_EXECUTION;
-				}
-
-				if (GuardPageHandler)
-				{
-					if (GuardPageHandler(ExceptionInfo))
-						return EXCEPTION_CONTINUE_EXECUTION;
-					else
-						return EXCEPTION_CONTINUE_SEARCH;
-				}
-				else
-				{
-					DebugOutput("CAPEExceptionFilter: Error, no page guard handler for CAPE guard page exception.\n");
-					return EXCEPTION_CONTINUE_EXECUTION;
-				}
-			}
-			else
-			{
-				DebugOutput("CAPEExceptionFilter: exception at 0x%x not within CAPE guarded page.\n", ExceptionInfo->ExceptionRecord->ExceptionInformation[1]);
-				return EXCEPTION_CONTINUE_EXECUTION;
-			}
-		}
-		else
-		{
-			DebugOutput("CAPEExceptionFilter: Guard page exception, passing.\n");
-			return EXCEPTION_CONTINUE_SEARCH;
-		}
 	}
 	else if (ExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_PRIVILEGED_INSTRUCTION || ExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_ILLEGAL_INSTRUCTION)
 	{
@@ -649,6 +610,9 @@ LONG WINAPI CAPEExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 				ExceptionInfo->ContextRecord->Eip += lde((void*)ExceptionInfo->ContextRecord->Eip);
 			}
 #endif
+			if (BreakpointsSet)
+				ContextClearDebugRegisters(ExceptionInfo->ContextRecord);
+
 			return EXCEPTION_CONTINUE_EXECUTION;
 		}
 #ifdef _WIN64
@@ -694,6 +658,9 @@ LONG WINAPI CAPEExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 				DebuggerOutput("\nException 0x%x at 0x%p, thread %d, flags 0x%x, exception information[0] 0x%p, exception information[1] 0x%p",ExceptionInfo->ExceptionRecord->ExceptionCode, ExceptionInfo->ExceptionRecord->ExceptionAddress, ThreadId, ExceptionInfo->ExceptionRecord->ExceptionFlags, ExceptionInfo->ExceptionRecord->ExceptionInformation[0], ExceptionInfo->ExceptionRecord->ExceptionInformation[1]);
 		}
 	}
+
+	if (BreakpointsSet)
+		ContextClearDebugRegisters(ExceptionInfo->ContextRecord);
 
 	// Some other exception occurred. Pass it to next handler.
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -886,7 +853,9 @@ BOOL SetDebugRegister
 
 	if (!GetThreadContext(hThread, &Context))
 	{
+#ifdef DEBUG_COMMENTS
 		ErrorOutput("SetDebugRegister: GetThreadContext failed (thread handle 0x%x)", hThread);
+#endif
 		return FALSE;
 	}
 
@@ -937,6 +906,26 @@ BOOL SetDebugRegister
 		ErrorOutput("SetDebugRegister: SetThreadContext failed");
 		return FALSE;
 	}
+
+	return TRUE;
+}
+
+//**************************************************************************************
+BOOL ContextClearDebugRegisters(PCONTEXT Context)
+//**************************************************************************************
+{
+	if (!Context)
+	{
+		DebugOutput("ContextClearDebugRegisters - no context supplied.\n");
+		return FALSE;
+	}
+
+	Context->Dr0 = 0;
+	Context->Dr1 = 0;
+	Context->Dr2 = 0;
+	Context->Dr3 = 0;
+	Context->Dr6 = 0;
+	Context->Dr7 = 0;
 
 	return TRUE;
 }
@@ -1154,7 +1143,7 @@ BOOL ContextClearBreakpointEx(PCONTEXT Context, PBREAKPOINTINFO pBreakpointInfo,
 	Dr7 = (PDR7)&(Context->Dr7);
 
 #ifdef DEBUG_COMMENTS
-	DebugOutput("ContextClearBreakpoint: Clearing breakpoint %i\n", pBreakpointInfo->Register);
+	DebugOutput("ContextClearBreakpointEx: Clearing breakpoint %i\n", pBreakpointInfo->Register);
 #endif
 
 	if (pBreakpointInfo->Register == 0)
@@ -1203,7 +1192,7 @@ BOOL ContextClearBreakpointEx(PCONTEXT Context, PBREAKPOINTINFO pBreakpointInfo,
 
 	if (pBreakpointInfo->ThreadHandle == NULL)
 	{
-		DebugOutput("ContextClearBreakpoint: No thread handle found in breakpoints found for current thread %d.\n", GetCurrentThreadId());
+		DebugOutput("ContextClearBreakpointEx: No thread handle found in breakpoints found for current thread %d.\n", GetCurrentThreadId());
 		return FALSE;
 	}
 
@@ -1211,26 +1200,40 @@ BOOL ContextClearBreakpointEx(PCONTEXT Context, PBREAKPOINTINFO pBreakpointInfo,
 
 	if (!SetThreadContext(pBreakpointInfo->ThreadHandle, Context))
 	{
-		ErrorOutput("ContextClearBreakpoint: SetThreadContext failed");
+		ErrorOutput("ContextClearBreakpointEx: SetThreadContext failed");
 		return FALSE;
 	}
 #ifdef DEBUG_COMMENTS
 	else
-		DebugOutput("ContextClearBreakpoint: SetThreadContext success.\n");
+		DebugOutput("ContextClearBreakpointEx: SetThreadContext success.\n");
 #endif
 #endif
 
 	return TRUE;
 }
 
-BOOL ContextClearBreakpoint(PCONTEXT Context, PBREAKPOINTINFO pBreakpointInfo)
+BOOL ContextClearBreakpoint(PCONTEXT Context, int Register)
 {
 	BOOL NoSetThreadContext = FALSE;
 
 	if ((OSVersion.dwMajorVersion == 6 && OSVersion.dwMinorVersion > 1) || OSVersion.dwMajorVersion > 6)
 		NoSetThreadContext = TRUE;
 
-	return ContextClearBreakpointEx(Context, pBreakpointInfo, NoSetThreadContext);
+	PTHREADBREAKPOINTS CurrentThreadBreakpoints = GetThreadBreakpoints(GetCurrentThreadId());
+
+	if (CurrentThreadBreakpoints == NULL)
+	{
+		DebugOutput("ContextClearBreakpoint: Error - Failed to acquire thread breakpoints.\n");
+		return FALSE;
+	}
+
+	for (unsigned int i = 0; i < NUMBER_OF_DEBUG_REGISTERS; i++)
+	{
+		if (CurrentThreadBreakpoints->BreakpointInfo[i].Register == Register)
+			return ContextClearBreakpointEx(Context, &CurrentThreadBreakpoints->BreakpointInfo[i], NoSetThreadContext);
+	}
+
+	return FALSE;
 }
 
 //**************************************************************************************
@@ -1349,8 +1352,6 @@ BOOL ClearBreakpointsInRange(PVOID BaseAddress, SIZE_T Size)
 {
 	unsigned int Register;
 
-	PTHREADBREAKPOINTS CurrentThreadBreakpoints = MainThreadBreakpointList;
-
 	if (BaseAddress == NULL)
 	{
 		DebugOutput("ClearBreakpointsInRange: No address supplied (may have already been cleared).\n");
@@ -1365,6 +1366,8 @@ BOOL ClearBreakpointsInRange(PVOID BaseAddress, SIZE_T Size)
 
 	DebugOutput("ClearBreakpointsInRange: Clearing breakpoints in range 0x%x - 0x%x.\n", BaseAddress, (BYTE*)BaseAddress + Size);
 
+	PTHREADBREAKPOINTS CurrentThreadBreakpoints = MainThreadBreakpointList;
+
 	while (CurrentThreadBreakpoints)
 	{
 		for (Register = 0; Register < NUMBER_OF_DEBUG_REGISTERS; Register++)
@@ -1374,6 +1377,42 @@ BOOL ClearBreakpointsInRange(PVOID BaseAddress, SIZE_T Size)
 			{
 				DebugOutput("ClearBreakpointsInRange: Clearing breakpoint %d address 0x%p.\n", Register, CurrentThreadBreakpoints->BreakpointInfo[Register].Address);
 				ClearBreakpoint(Register);
+			}
+		}
+
+		CurrentThreadBreakpoints = CurrentThreadBreakpoints->NextThreadBreakpoints;
+	}
+
+	return TRUE;
+}
+
+//**************************************************************************************
+BOOL ClearBreakpointsInRegion(PVOID BaseAddress)
+//**************************************************************************************
+{
+	unsigned int Register;
+
+	PTHREADBREAKPOINTS CurrentThreadBreakpoints = MainThreadBreakpointList;
+
+	if (BaseAddress == NULL)
+	{
+		DebugOutput("ClearBreakpointsInRegion: No address supplied (may have already been cleared).\n");
+		return FALSE;
+	}
+
+	SIZE_T Size = GetAllocationSize(BaseAddress);
+
+	DebugOutput("ClearBreakpointsInRegion: Clearing breakpoints in range 0x%x - 0x%x.\n", BaseAddress, (BYTE*)BaseAddress + Size);
+
+	while (CurrentThreadBreakpoints)
+	{
+		for (Register = 0; Register < NUMBER_OF_DEBUG_REGISTERS; Register++)
+		{
+			if ((DWORD_PTR)CurrentThreadBreakpoints->BreakpointInfo[Register].Address >= (DWORD_PTR)BaseAddress
+				&& (DWORD_PTR)CurrentThreadBreakpoints->BreakpointInfo[Register].Address < (DWORD_PTR)((BYTE*)BaseAddress + Size))
+			{
+				DebugOutput("ClearBreakpointsInRegion: Clearing breakpoint %d address 0x%p (thread %d).\n", Register, CurrentThreadBreakpoints->BreakpointInfo[Register].Address, CurrentThreadBreakpoints->ThreadId);
+				ClearThreadBreakpoint(CurrentThreadBreakpoints->ThreadId, Register);
 			}
 		}
 
@@ -1946,7 +1985,7 @@ BOOL ContextClearCurrentBreakpoint
 			}
 
 			if (pBreakpointInfo->Register == bp)
-				return ContextClearBreakpoint(Context, pBreakpointInfo);
+				return ContextClearBreakpoint(Context, bp);
 		}
 	}
 
@@ -2334,15 +2373,13 @@ BOOL InitialiseDebugger(void)
 	if (DebuggerInitialised)
 		return TRUE;
 
-	MainThreadId = GetCurrentThreadId();
-
 	if (DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &MainThreadHandle, 0, FALSE, DUPLICATE_SAME_ACCESS) == 0)
 	{
 		DebugOutput("InitialiseDebugger: Failed to duplicate thread handle.\n");
 		return FALSE;
 	}
 
-	MainThreadBreakpointList = CreateThreadBreakpoints(MainThreadId, NULL);
+	MainThreadBreakpointList = CreateThreadBreakpoints(GetCurrentThreadId(), NULL);
 
 	if (MainThreadBreakpointList == NULL)
 	{
@@ -2420,7 +2457,9 @@ void NtContinueHandler(PCONTEXT ThreadContext)
 		PTHREADBREAKPOINTS ThreadBreakpoints = GetThreadBreakpoints(ThreadId);
 		if (ThreadBreakpoints)
 		{
+#ifdef DEBUG_COMMENTS
 			DebugOutput("NtContinue hook: restoring breakpoints for thread %d.\n", ThreadId);
+#endif
 			ContextSetThreadBreakpointsEx(ThreadContext, ThreadBreakpoints, TRUE);
 #ifndef _WIN64
 			if (BreakOnNtContinue) {

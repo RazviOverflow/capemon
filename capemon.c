@@ -50,6 +50,7 @@ wchar_t *our_dll_path_w;
 wchar_t *our_commandline;
 BOOL is_64bit_os;
 
+extern ULONG_PTR ntdll_base;
 extern PVOID ImageBase;
 extern void CAPE_init();
 extern void CAPE_post_init();
@@ -60,7 +61,6 @@ extern ULONG_PTR base_of_dll_of_interest;
 extern BOOL BreakpointsHit, SetInitialBreakpoints(PVOID ImageBase);
 extern PCHAR ScyllaGetExportDirectory(PVOID Address);
 extern PCHAR ScyllaGetExportNameByScan(PVOID Address, PCHAR* ModuleName, SIZE_T ScanSize);
-extern void UnpackerDllInit(PVOID DllBase);
 extern void YaraScan(PVOID Address, SIZE_T Size);
 
 extern BOOL set_hooks_dll(const wchar_t *library);
@@ -164,9 +164,7 @@ VOID CALLBACK New_DllLoadNotification(
 			DebugOutput("Target DLL loaded at 0x%p: %ws (0x%x bytes).\n", NotificationData->Loaded.DllBase, library.Buffer, NotificationData->Loaded.SizeOfImage);
 			if (g_config.yarascan)
 				YaraScan((PVOID)base_of_dll_of_interest, NotificationData->Loaded.SizeOfImage);
-			if (g_config.unpacker)
-				UnpackerDllInit((PVOID)base_of_dll_of_interest);
-			else if (g_config.debugger && !g_config.base_on_apiname[0])
+			if (g_config.debugger && !g_config.base_on_apiname[0])
 			{
 				BreakpointsHit = FALSE;
 				SetInitialBreakpoints((PVOID)base_of_dll_of_interest);
@@ -527,6 +525,7 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD dwReason, LPVOID lpReserved)
 
 		g_our_dll_base = (ULONG_PTR)hModule;
 		g_our_dll_size = get_image_size(g_our_dll_base);
+		ntdll_base = (ULONG_PTR)GetModuleHandle("ntdll");
 
 		g_osverinfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOA);
 		GetVersionEx(&g_osverinfo);
