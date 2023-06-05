@@ -97,6 +97,8 @@ hook_t full_hooks[] = {
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressW, 5),
 	HOOK_NOTAIL_ALT(kernelbase, MoveFileWithProgressTransactedW, 6),
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressTransactedW, 6),
+	HOOK(kernel32, UpdateProcThreadAttribute),
+	HOOK(kernel32, GetWriteWatch),
 
 	// File Hooks
 	HOOK(ntdll, NtQueryAttributesFile),
@@ -885,6 +887,8 @@ hook_t office_hooks[] = {
 	HOOK(user32, FindWindowExW),
 	HOOK(user32, PostMessageA),
 	HOOK(user32, PostMessageW),
+	HOOK(user32, PostThreadMessageA),
+	HOOK(user32, PostThreadMessageW),
 //	HOOK(user32, SendMessageA),	// maldoc detonation issues
 //	HOOK(user32, SendMessageW),	//
 	HOOK(user32, SendNotifyMessageA),
@@ -1612,8 +1616,6 @@ void set_hooks()
 
 	memset(&threadInfo, 0, sizeof(threadInfo));
 	threadInfo.dwSize = sizeof(threadInfo);
-
-	hook_init();
 
 	hook_disable();
 

@@ -793,6 +793,20 @@ HOOKDEF(BOOL, WINAPI, PostMessageW,
 	_In_  LPARAM lParam
 );
 
+HOOKDEF(BOOL, WINAPI, PostThreadMessageA,
+		_In_  DWORD idThread,
+		_In_  UINT Msg,
+		_In_  WPARAM wParam,
+		_In_  LPARAM lParam
+);
+
+HOOKDEF(BOOL, WINAPI, PostThreadMessageW,
+			_In_  DWORD idThread,
+			_In_  UINT Msg,
+			_In_  WPARAM wParam,
+			_In_  LPARAM lParam
+);
+
 HOOKDEF(BOOL, WINAPI, SendMessageA,
 	_In_  HWND hWnd,
 	_In_  UINT Msg,
@@ -3495,3 +3509,21 @@ HOOKDEF(HANDLE, WINAPI, OpenThread,
 	_In_ BOOL bInheritHandle,
 	_In_ DWORD dwThreadId
 );*/
+HOOKDEF(UINT, WINAPI, GetWriteWatch,
+	__in		DWORD		dwFlags,
+	__in		PVOID		lpBaseAddress,
+	__in		SIZE_T		dwRegionSize,
+	__out		PVOID*		lpAddresses,
+	__inout		ULONG_PTR*	lpdwCount,
+	__out		LPDWORD		lpdwGranularity
+);
+
+HOOKDEF(BOOL, WINAPI, UpdateProcThreadAttribute,
+	__inout		LPPROC_THREAD_ATTRIBUTE_LIST lpAttributeList,
+	__in		DWORD		dwFlags,
+	__in		DWORD_PTR	Attribute,
+	__in		PVOID		lpValue,
+	__in		SIZE_T		cbSize,
+	__out_opt	PVOID		lpPreviousValue,
+	__in_opt	PSIZE_T		lpReturnSize
+);

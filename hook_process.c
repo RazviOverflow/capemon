@@ -1046,10 +1046,10 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 			ProtectionHandler(*BaseAddress, NewAccessProtection, OldAccessProtection);
 		if (g_config.caller_regions)
 		{
-			if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
+			if (g_config.yarascan && lookup_get(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
 			{
 				DebugOutput("NtProtectVirtualMemory: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
-				lookup_del_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase);
+				lookup_del(&g_caller_regions, (ULONG_PTR)AllocationBase);
 			}
 		}
 	}
@@ -1136,10 +1136,10 @@ HOOKDEF(BOOL, WINAPI, VirtualProtectEx,
 			ProtectionHandler(lpAddress, flNewProtect, lpflOldProtect);
 		if (g_config.caller_regions)
 		{
-			if (g_config.yarascan && lookup_get_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
+			if (g_config.yarascan && lookup_get(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
 			{
 				DebugOutput("VirtualProtectEx: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
-				lookup_del_no_cs(&g_caller_regions, (ULONG_PTR)AllocationBase);
+				lookup_del(&g_caller_regions, (ULONG_PTR)AllocationBase);
 			}
 		}
 	}
@@ -1390,4 +1390,34 @@ HOOKDEF(VOID, WINAPI, ExitProcess,
 	Old_ExitProcess(uExitCode);
 	int ret = 0;	// needed for LOQ_void
 	LOQ_void("process", "i", "ExitCode", uExitCode); // Modify category and log according to your needs
+}
+HOOKDEF(UINT, WINAPI, GetWriteWatch,
+	__in		DWORD		dwFlags,
+	__in		PVOID		lpBaseAddress,
+	__in		SIZE_T		dwRegionSize,
+	__out		PVOID*		lpAddresses,
+	__inout		ULONG_PTR*	lpdwCount,
+	__out		LPDWORD		lpdwGranularity
+) {
+	UINT ret = Old_GetWriteWatch(dwFlags, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
+	LOQ_zero("process", "piiL", "BaseAddress", lpBaseAddress, "RegionSize", dwRegionSize, "Flags", dwFlags, "Count", lpdwCount);
+	if (lpdwCount && *lpdwCount)
+		*lpdwCount = 0;
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, UpdateProcThreadAttribute,
+	__inout		LPPROC_THREAD_ATTRIBUTE_LIST lpAttributeList,
+	__in		DWORD		dwFlags,
+	__in		DWORD_PTR	Attribute,
+	__in		PVOID		lpValue,
+	__in		SIZE_T		cbSize,
+	__out_opt	PVOID		lpPreviousValue,
+	__in_opt	PSIZE_T		lpReturnSize
+) {
+	BOOL ret = 0;
+	if (!(Attribute == PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY && *(DWORD64*)lpValue == PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON))
+		ret = Old_UpdateProcThreadAttribute(lpAttributeList, dwFlags, Attribute, lpValue, cbSize, lpPreviousValue, lpReturnSize);
+	LOQ_zero("process", "lL", "Attribute", Attribute, "Value", lpValue);
+	return ret;
 }
