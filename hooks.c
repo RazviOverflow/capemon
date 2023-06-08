@@ -626,6 +626,8 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, CloseHandle),
 	HOOK(kernel32, Process32First),
 	HOOK(kernel32, Process32Next),
+	HOOK(advapi32, RegDeleteKeyExW),
+	HOOK(advapi32, RegDeleteKeyExA),
 	//HOOK(kernel32, ExitProcess),
 };
 
