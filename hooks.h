@@ -448,14 +448,14 @@ HOOKDEF(LSTATUS, WINAPI, RegDeleteKeyExW,
 	_In_ HKEY    hKey,
 	_In_ LPCWSTR lpSubKey,
 	_In_ REGSAM  samDesired,
-	__reserved DWORD   Reserved
+	__reserved  DWORD Reserved
 );
 
 HOOKDEF(LSTATUS, WINAPI, RegDeleteKeyExA,
 	_In_ HKEY   hKey,
 	_In_ LPCSTR lpSubKey,
 	_In_ REGSAM samDesired,
-	__reserved DWORD  Reserved
+	__reserved  DWORD Reserved
 );
 
 HOOKDEF(LONG, WINAPI, RegEnumKeyW,
