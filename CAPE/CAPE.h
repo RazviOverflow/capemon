@@ -133,18 +133,15 @@ enum {
 	STACK_REGION = 0x6c,
 
 	TYPE_STRING = 0x100,
-
-	UPX = 0x1000
 };
 
 typedef struct TrackedRegion
 {
 	PVOID						AllocationBase;
-	PVOID						ProtectAddress;
+	PVOID						Address;
 	MEMORY_BASIC_INFORMATION	MemInfo;
 	BOOL						Committed;
 	BOOL						PagesDumped;
-	BOOL						CallerDetected;
 	BOOL						CanDump;
 	DWORD						EntryPoint;
 	double						Entropy;

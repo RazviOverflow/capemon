@@ -140,7 +140,6 @@ extern PVOID GetReturnAddress(hook_info_t *hookinfo);
 extern PVOID CallingModule;
 extern void UnpackerInit();
 extern BOOL SetInitialBreakpoints(PVOID ImageBase);
-extern BOOL UPXInitialBreakpoints(PVOID ImageBase);
 extern BOOL BreakpointsSet, TraceRunning;
 
 OSVERSIONINFO OSVersion;
@@ -774,7 +773,7 @@ PTRACKEDREGION AddTrackedRegion(PVOID Address, ULONG Protect)
 		TrackedRegion = TrackedRegion->NextTrackedRegion;
 	}
 
-	if (NumberOfTrackedRegions > 10)
+	if (NumberOfTrackedRegions > 100)
 		DebugOutput("AddTrackedRegion: DEBUG Warning - number of tracked regions %d.\n", NumberOfTrackedRegions);
 
 	if (GetPageAddress(Address) == GetPageAddress(TrackedRegionList))
@@ -822,7 +821,7 @@ PTRACKEDREGION AddTrackedRegion(PVOID Address, ULONG Protect)
 	TrackedRegion->AllocationBase = TrackedRegion->MemInfo.AllocationBase;
 
 	if (Address != TrackedRegion->AllocationBase)
-		TrackedRegion->ProtectAddress = Address;
+		TrackedRegion->Address = Address;
 
 	if (Protect)
 		TrackedRegion->MemInfo.Protect = Protect;
@@ -1009,18 +1008,39 @@ void ProcessTrackedRegion(PTRACKEDREGION TrackedRegion)
 		return;
 	}
 
-	if (!TrackedRegion->CanDump && !TrackedRegion->CallerDetected && g_terminate_event_handle)
+	if (!TrackedRegion->CanDump && !TrackedRegion->Address && g_terminate_event_handle)
 		return;
 
-	if (!ScanForNonZero(TrackedRegion->AllocationBase, GetAccessibleSize(TrackedRegion->AllocationBase)))
+	PVOID BaseAddress = TrackedRegion->AllocationBase;
+	SIZE_T RegionSize = GetAccessibleSize(BaseAddress);
+
+	if (!RegionSize && TrackedRegion->Address)
+	{
+		BaseAddress = TrackedRegion->Address;
+		RegionSize = GetAccessibleSize(BaseAddress);
+		if (!RegionSize)
+		{
+#ifdef DEBUG_COMMENTS
+			DebugOutput("ProcessTrackedRegion: Region at 0x%p is empty\n", BaseAddress);
+#endif
+			return;
+		}
+	}
+
+	if (!ScanForNonZero(BaseAddress, RegionSize))
+	{
+#ifdef DEBUG_COMMENTS
+		DebugOutput("ProcessTrackedRegion: Region at 0x%p is empty\n", BaseAddress);
+#endif
 		return;
+	}
 
 	if (TrackedRegion->PagesDumped)
 	{
 		// Allow a big enough change in entropy to trigger another dump
 		if (TrackedRegion->EntryPoint && TrackedRegion->Entropy)
 		{
-			double Entropy = GetPEEntropy(TrackedRegion->AllocationBase);
+			double Entropy = GetPEEntropy(BaseAddress);
 			if (Entropy && (fabs(TrackedRegion->Entropy - Entropy) < (double)ENTROPY_DELTA))
 				return;
 		}
@@ -1033,35 +1053,38 @@ void ProcessTrackedRegion(PTRACKEDREGION TrackedRegion)
 	TraceRunning = FALSE;
 
 	if (g_config.yarascan)
-		YaraScan(TrackedRegion->AllocationBase, GetAccessibleSize(TrackedRegion->AllocationBase));
+		YaraScan(BaseAddress, RegionSize);
 
 	char ModulePath[MAX_PATH];
-	BOOL MappedModule = GetMappedFileName(GetCurrentProcess(), TrackedRegion->AllocationBase, ModulePath, MAX_PATH);
+	BOOL MappedModule = GetMappedFileName(GetCurrentProcess(), BaseAddress, ModulePath, MAX_PATH);
 	if (MappedModule)
+	{
+		DebugOutput("ProcessTrackedRegion: Region at 0x%p mapped as %s, skipping", BaseAddress, ModulePath);
 		return;
+	}
 
 	if (!CapeMetaData->DumpType)
 		CapeMetaData->DumpType = UNPACKED_SHELLCODE;
 
 	if (!CapeMetaData->Address)
-		CapeMetaData->Address = TrackedRegion->AllocationBase;
+		CapeMetaData->Address = BaseAddress;
 
-	TrackedRegion->PagesDumped = DumpRegion(TrackedRegion->AllocationBase);
+	TrackedRegion->PagesDumped = DumpRegion(BaseAddress);
 
 	if (TrackedRegion->PagesDumped)
 	{
 		if (TraceIsRunning)
-			DebuggerOutput("ProcessTrackedRegion: Dumped region at 0x%p.\n", TrackedRegion->AllocationBase);
+			DebuggerOutput("ProcessTrackedRegion: Dumped region at 0x%p.\n", BaseAddress);
 		else
-			DebugOutput("ProcessTrackedRegion: Dumped region at 0x%p.\n", TrackedRegion->AllocationBase);
+			DebugOutput("ProcessTrackedRegion: Dumped region at 0x%p.\n", BaseAddress);
 		ClearTrackedRegion(TrackedRegion);
 	}
 	else
 	{
 		if (TraceIsRunning)
-			DebuggerOutput("ProcessTrackedRegion: Failed to dump region at 0x%p.\n", TrackedRegion->AllocationBase);
+			DebuggerOutput("ProcessTrackedRegion: Failed to dump region at 0x%p.\n", BaseAddress);
 		else
-			DebugOutput("ProcessTrackedRegion: Failed to dump region at 0x%p.\n", TrackedRegion->AllocationBase);
+			DebugOutput("ProcessTrackedRegion: Failed to dump region at 0x%p.\n", BaseAddress);
 	}
 
 }
@@ -1263,6 +1286,15 @@ char* GetName()
 
 	free(OutputFilename);
 
+	return FullPathName;
+}
+
+//**************************************************************************************
+char* GetTempName()
+//**************************************************************************************
+{
+	char *FullPathName = GetResultsPath("CAPE");
+	PathAppend(FullPathName, "CapeOutput.bin");
 	return FullPathName;
 }
 
@@ -1512,7 +1544,7 @@ SIZE_T ScanForAccess(PVOID Buffer, SIZE_T Size)
 //**************************************************************************************
 {
 	SIZE_T p, AllocationSize;
-	char c;
+	char c = 0;
 
 	if (!Buffer)
 	{
@@ -2427,7 +2459,15 @@ int DoProcessDump()
 	if (!SystemInfo.dwPageSize)
 	{
 		ErrorOutput("DoProcessDump: Failed to obtain system page size.\n");
-		goto out;
+		return 0;
+	}
+
+	if (ProcessDumped)
+	{
+#ifdef DEBUG_COMMENTS
+		DebugOutput("DoProcessDump: This process has already been dumped.\n");
+#endif
+		return 0;
 	}
 
 	if (g_config.procdump)
@@ -2666,17 +2706,6 @@ void CAPE_post_init()
 		DebugOutput("Post-init: Failed to initialise debugger.\n");
 #endif
 
-	if (!g_config.debugger && g_config.upx)
-	{
-		CapeMetaData->DumpType = UPX;
-		g_config.procdump = 0;
-		if (InitialiseDebugger())
-			DebugOutput("UPX unpacker: Debugger initialised.\n");
-		else
-			DebugOutput("UPX unpacker: Failed to initialise debugger.\n");
-		UPXInitialBreakpoints(GetModuleHandle(NULL));
-	}
-
 	if (g_config.unpacker)
 		UnpackerInit();
 
@@ -2718,14 +2747,12 @@ void CAPE_init()
 	// Cuckoo debug output level for development (0=none, 2=max)
 	// g_config.debug = 2;
 
+	YaraInit();
+
 	ImageBase = GetModuleHandle(NULL);
 
 	if (g_config.yarascan)
-	{
-		DebugOutput("Initialising Yara...\n");
-		YaraInit();
 		YaraScan(ImageBase, GetAccessibleSize(ImageBase));
-	}
 
 	if (is_image_base_remapped(ImageBase))
 	{
@@ -2760,7 +2787,8 @@ void CAPE_init()
 		}
 
 		DebugOutput("CAPE_init: Image base temporarily remapped for scanning at 0x%p", ImageBase);
-		YaraScan(Mapped, GetAccessibleSize(ImageBase));
+		if (g_config.yarascan)
+			YaraScan(Mapped, GetAccessibleSize(ImageBase));
 
 Finish:
 		if (Mapped) UnmapViewOfFile(Mapped);

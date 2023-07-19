@@ -574,10 +574,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 		TerminateHandler();
 
 	if (process_shutting_down && g_config.debugger)
-	{
 		DebuggerShutdown();
-		DebugOutput("NtTerminateProcess hook: Debugger shutdown (process %d).\n", GetCurrentProcessId());
-	}
 
 	if (process_shutting_down && g_config.procdump && !ProcessDumped) {
 		DebugOutput("NtTerminateProcess hook: Attempting to dump process %d\n", GetCurrentProcessId());
@@ -784,6 +781,16 @@ HOOKDEF(NTSTATUS, WINAPI, NtUnmapViewOfSectionEx,
 
 	LOQ_ntstatus("process", "pppi", "ProcessHandle", ProcessHandle, "BaseAddress", BaseAddress, "RegionSize", map_size, "Flags", Flags);
 
+	return ret;
+}
+
+HOOKDEF(HMODULE, WINAPI, LoadLibraryExW,
+	__in	  LPCWSTR lpLibFileName,
+	__in	  HANDLE  hFile,
+	__in	  DWORD   dwFlags
+) {
+	HMODULE ret = Old_LoadLibraryExW(lpLibFileName, hFile, dwFlags);
+	LOQ_nonnull("system", "uh", "lpLibFileName", lpLibFileName, "dwFlags", dwFlags);
 	return ret;
 }
 
