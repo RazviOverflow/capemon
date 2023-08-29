@@ -20,6 +20,7 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 #include <windows.h>
 #include "Shlwapi.h"
 #include "CAPE.h"
+#include "Debugger.h"
 #include "YaraHarness.h"
 #include "..\config.h"
 
@@ -143,7 +144,17 @@ int YaraCallback(YR_SCAN_CONTEXT* context, int message, void* message_data, void
 						if (!_stricmp("dump", OptionLine))
 							DoDumpRegion = TRUE;
 						if (!_stricmp("clear", OptionLine))
+						{
 							BreakpointsHit = FALSE;
+							g_config.bp0 = NULL;
+							g_config.bp1 = NULL;
+							g_config.bp2 = NULL;
+							g_config.bp3 = NULL;
+							g_config.br0 = NULL;
+							g_config.br1 = NULL;
+							g_config.br2 = NULL;
+							g_config.br3 = NULL;
+						}
 						parse_config_line(OptionLine);
 						if (p)
 						{
@@ -156,7 +167,7 @@ int YaraCallback(YR_SCAN_CONTEXT* context, int message, void* message_data, void
 				}
 			}
 
-			if (SetBreakpoints)
+			if (DebuggerInitialised && SetBreakpoints)
 				SetInitialBreakpoints(user_data);
 
 			if (DoDumpRegion)
@@ -336,7 +347,7 @@ void InternalYaraScan(PVOID Address, SIZE_T Size)
 
 	__try
 	{
-		Result = yr_rules_scan_mem(Rules, Address, AccessibleSize, Flags, InternalYaraCallback, Address, Timeout);
+		Result = yr_rules_scan_mem(Rules, Address, Size, Flags, InternalYaraCallback, Address, Timeout);
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER)
 	{
