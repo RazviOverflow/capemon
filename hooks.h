@@ -3620,3 +3620,14 @@ HOOKDEF(HRESULT, WINAPI, PathCchRenameExtension,
 	_In_ size_t cchPath,
 	_In_ PCWSTR pszExt
 );
+
+HOOKDEF(BOOL, WINAPI, Thread32Next,
+	_In_  HANDLE          hSnapshot,
+	_Out_ LPTHREADENTRY32 lpte
+);
+
+HOOKDEF(BOOL, WINAPI, Thread32First,
+	_In_      HANDLE          hSnapshot,
+	_Inout_ LPTHREADENTRY32 lpte
+);
+

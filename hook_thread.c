@@ -698,3 +698,23 @@ HOOKDEF(BOOL, WINAPI, DisableThreadLibraryCalls,
 	LOQ_bool("threading", "p", "Module", hLibModule);
 	return ret;
 }
+
+HOOKDEF(BOOL, WINAPI, Thread32Next,
+	_In_  HANDLE          hSnapshot,
+	_Out_ LPTHREADENTRY32 lpte
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked Thread32Next\n");
+	BOOL ret = Old_Thread32Next(hSnapshot, lpte);
+	LOQ_bool("threading", "ii", "ThreadID", lpte->th32ThreadID, "OwnerPID", lpte->th32OwnerProcessID); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, Thread32First,
+	_In_      HANDLE        hSnapshot,
+	_Inout_ LPTHREADENTRY32 lpte
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked Thread32First\n");
+	BOOL ret = Old_Thread32First(hSnapshot, lpte);
+	LOQ_bool("threading", "ii", "ThreadID", lpte->th32ThreadID, "OwnerPID", lpte->th32OwnerProcessID); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}

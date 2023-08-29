@@ -644,6 +644,8 @@ hook_t full_hooks[] = {
 	HOOK(shlwapi, PathAddExtensionA),
 	HOOK(shlwapi, PathAddExtensionW),
 	HOOK(pathcch, PathCchRenameExtension),
+	HOOK(kernel32, Thread32Next),
+	HOOK(kernel32, Thread32First),
 };
 
 // This hook set is intended to include only hooks which are necessary
