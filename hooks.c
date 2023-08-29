@@ -634,6 +634,13 @@ hook_t full_hooks[] = {
 	HOOK(advapi32, RegDeleteKeyExW),
 	HOOK(advapi32, RegDeleteKeyExA),
 	//HOOK(kernel32, ExitProcess),
+	HOOK(shlwapi, PathRenameExtension),
+	HOOK(shlwapi, PathCombine),
+	HOOK(pathcch, PathCchCombine),
+	HOOK(pathcch, PathCchCombineEx),
+	HOOK(pathcch, PathAllocCombine),
+	HOOK(shlwapi, PathAddExtension),
+	HOOK(pathcch, PathCchRenameExtension),
 };
 
 // This hook set is intended to include only hooks which are necessary
