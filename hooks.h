@@ -3561,15 +3561,26 @@ HOOKDEF(BOOL, WINAPI, UpdateProcThreadAttribute,
 	__in_opt	PSIZE_T		lpReturnSize
 );
 
-HOOKDEF(BOOL, WINAPI, PathRenameExtension,
-	_Inout_ LPTSTR pszPath,
-	_In_ LPCTSTR pszExt
+HOOKDEF(BOOL, WINAPI, PathRenameExtensionA,
+	_Inout_ LPSTR  pszPath,
+	_In_      LPCSTR pszExt
 );
 
-HOOKDEF(LPTSTR, WINAPI, PathCombine,
-	_Out_ LPTSTR pszPathOut,
-	_In_opt_ LPCTSTR pszPathIn,
-	_In_ LPCTSTR pszMore
+HOOKDEF(BOOL, WINAPI, PathRenameExtensionW,
+	_Inout_ LPWSTR  pszPath,
+	_In_      LPCWSTR pszExt
+);
+
+HOOKDEF(LPSTR, WINAPI, PathCombineA,
+	_Out_          LPSTR  pszDest,
+	_In_opt_ LPCSTR pszDir,
+	_In_           LPCSTR pszFile
+);
+
+HOOKDEF(LPWSTR, WINAPI, PathCombineW,
+	_Out_          LPWSTR  pszDest,
+	_In_opt_ LPCWSTR pszDir,
+	_In_           LPCWSTR pszFile
 );
 
 HOOKDEF(HRESULT, WINAPI, PathCchCombine,
@@ -3594,9 +3605,14 @@ HOOKDEF(HRESULT, WINAPI, PathAllocCombine,
 	_Out_ PWSTR* ppszPathOut
 );
 
-HOOKDEF(BOOL, WINAPI, PathAddExtension,
-	_Inout_ LPTSTR pszPath,
-	_In_opt_ LPCTSTR pszExtension
+HOOKDEF(BOOL, WINAPI, PathAddExtensionA,
+	_Inout_      LPSTR  pszPath,
+	_In_opt_ LPCSTR pszExt
+);
+
+HOOKDEF(BOOL, WINAPI, PathAddExtensionW,
+	_Inout_      LPWSTR  pszPath,
+	_In_opt_ LPCWSTR pszExt
 );
 
 HOOKDEF(HRESULT, WINAPI, PathCchRenameExtension,
