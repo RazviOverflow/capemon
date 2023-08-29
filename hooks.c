@@ -634,12 +634,15 @@ hook_t full_hooks[] = {
 	HOOK(advapi32, RegDeleteKeyExW),
 	HOOK(advapi32, RegDeleteKeyExA),
 	//HOOK(kernel32, ExitProcess),
-	HOOK(shlwapi, PathRenameExtension),
-	HOOK(shlwapi, PathCombine),
+	HOOK(shlwapi, PathRenameExtensionA),
+	HOOK(shlwapi, PathRenameExtensionW),
+	HOOK(shlwapi, PathCombineA),
+	HOOK(shlwapi, PathCombineW),
 	HOOK(pathcch, PathCchCombine),
 	HOOK(pathcch, PathCchCombineEx),
 	HOOK(pathcch, PathAllocCombine),
-	HOOK(shlwapi, PathAddExtension),
+	HOOK(shlwapi, PathAddExtensionA),
+	HOOK(shlwapi, PathAddExtensionW),
 	HOOK(pathcch, PathCchRenameExtension),
 };
 
