@@ -1810,3 +1810,23 @@ HOOKDEF(BOOL, WINAPI, CloseHandle,
 	LOQ_bool("misc", "p", "hObject", hObject); // Modify category and log according to your needs
 	return ret;
 }
+
+HOOKDEF(HANDLE, WINAPI, GetProcessHeap,
+	void
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetProcessHeap\n");
+	HANDLE ret = Old_GetProcessHeap(void);
+	LOQ_bool("misc", ""); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
+	_In_           PVOID  HeapHandle,
+	_In_opt_ ULONG  Flags,
+	_In_           SIZE_T Size
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked RtlAllocateHeap\n");
+	NTSYSAPI PVOID ret = Old_RtlAllocateHeap(HeapHandle, Flags, Size);
+	LOQ_bool("misc", "lh", "Flags", Flags, "Size", Size); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}

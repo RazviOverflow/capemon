@@ -3631,3 +3631,13 @@ HOOKDEF(BOOL, WINAPI, Thread32First,
 	_Inout_ LPTHREADENTRY32 lpte
 );
 
+HOOKDEF(HANDLE, WINAPI, GetProcessHeap,
+	void	
+);
+
+HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
+	_In_           PVOID  HeapHandle,
+	_In_opt_ ULONG  Flags,
+	_In_           SIZE_T Size
+);
+

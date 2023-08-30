@@ -646,6 +646,8 @@ hook_t full_hooks[] = {
 	HOOK(pathcch, PathCchRenameExtension),
 	HOOK(kernel32, Thread32Next),
 	HOOK(kernel32, Thread32First),
+	HOOK(kernel32, GetProcessHeap),
+	HOOK(ntoskrnl, RtlAllocateHeap),
 };
 
 // This hook set is intended to include only hooks which are necessary
