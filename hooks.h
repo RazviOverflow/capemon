@@ -3635,9 +3635,26 @@ HOOKDEF(HANDLE, WINAPI, GetProcessHeap,
 	void	
 );
 
-HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
-	_In_           PVOID  HeapHandle,
-	_In_opt_ ULONG  Flags,
-	_In_           SIZE_T Size
+HOOKDEF(LPVOID, WINAPI, HeapAlloc,
+	_In_ HANDLE hHeap,
+	_In_ DWORD dwFlags,
+	_In_ SIZE_T dwBytes
+);
+
+HOOKDEF(LPVOID, WINAPI, VirtualAlloc,
+	_In_opt_ LPVOID lpAddress,
+	_In_ SIZE_T dwSize,
+	_In_ DWORD flAllocationType,
+	_In_ DWORD flProtect
+);
+
+HOOKDEF(HGLOBAL, WINAPI, GlobalAlloc,
+	_In_ UINT uFlags,
+	_In_ SIZE_T dwBytes
+);
+
+HOOKDEF(HLOCAL, WINAPI, LocalAlloc,
+	_In_ UINT uFlags,
+	_In_ SIZE_T uBytes
 );
 

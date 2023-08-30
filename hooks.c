@@ -647,7 +647,10 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, Thread32Next),
 	HOOK(kernel32, Thread32First),
 	HOOK(kernel32, GetProcessHeap),
-	HOOK(ntoskrnl, RtlAllocateHeap),
+	HOOK(kernel32, HeapAlloc),
+	HOOK(kernel32, VirtualAlloc),
+	HOOK(kernel32, GlobalAlloc),
+	HOOK(kernel32, LocalAlloc),
 };
 
 // This hook set is intended to include only hooks which are necessary
