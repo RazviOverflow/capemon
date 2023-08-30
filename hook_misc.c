@@ -1853,6 +1853,7 @@ HOOKDEF(HGLOBAL, WINAPI, GlobalAlloc,
 	return ret;
 }
 
+/*
 HOOKDEF(HLOCAL, WINAPI, LocalAlloc,
 	_In_ UINT uFlags,
 	_In_ SIZE_T uBytes
@@ -1861,4 +1862,4 @@ HOOKDEF(HLOCAL, WINAPI, LocalAlloc,
 	HLOCAL ret = Old_LocalAlloc(uFlags, uBytes);
 	LOQ_bool("misc", "hh", "Flags", uFlags, "Bytes", uBytes); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
-}
+}*/
