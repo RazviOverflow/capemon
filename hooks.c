@@ -646,11 +646,12 @@ hook_t full_hooks[] = {
 	HOOK(pathcch, PathCchRenameExtension),
 	HOOK(kernel32, Thread32Next),
 	HOOK(kernel32, Thread32First),
-	HOOK(kernel32, GetProcessHeap),
+	//HOOK(kernel32, GetProcessHeap),
 	HOOK(kernel32, HeapAlloc),
-	HOOK(kernel32, VirtualAlloc),
+	HOOK(kernel32, VirtualAlloc), // Covered as well by NtAllocateVirtualMemory
 	HOOK(kernel32, GlobalAlloc),
 	HOOK(kernel32, LocalAlloc),
+	//HOOK(ntdll, RtlAllocateHeap), // Can't make it work
 };
 
 // This hook set is intended to include only hooks which are necessary

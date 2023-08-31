@@ -1603,8 +1603,8 @@ HOOKDEF(BOOL, WINAPI, PathRenameExtensionA,
 	_In_      LPCSTR pszExt
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathRenameExtensionA\n");
-	BOOL ret = Old_PathRenameExtensionA(pszPath, pszExt);
 	LOQ_bool("filesystem", "ff", "OriginalPath", pszPath, "ExtensionPath", pszExt); // Modify category, LOQ_ function and log message according to your needs
+	BOOL ret = Old_PathRenameExtensionA(pszPath, pszExt);
 	return ret;
 }
 
@@ -1613,8 +1613,8 @@ HOOKDEF(BOOL, WINAPI, PathRenameExtensionW,
 	_In_      LPCWSTR pszExt
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathRenameExtensionW\n");
-	BOOL ret = Old_PathRenameExtensionW(pszPath, pszExt);
 	LOQ_bool("filesystem", "FF", "OriginalPath", pszPath, "ExtensionPath", pszExt); // Modify category, LOQ_ function and log message according to your needs
+	BOOL ret = Old_PathRenameExtensionW(pszPath, pszExt);
 	return ret;
 }
 
@@ -1624,8 +1624,8 @@ HOOKDEF(LPSTR, WINAPI, PathCombineA,
 	_In_           LPCSTR pszFile
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathCombineA\n");
-	LPSTR ret = Old_PathCombineA(pszDest, pszDir, pszFile);
 	LOQ_bool("filesystem", "fff", "DestinyPath", pszDest, "Directory", pszDir, "FilePath", pszFile); // Modify category, LOQ_ function and log message according to your needs
+	LPSTR ret = Old_PathCombineA(pszDest, pszDir, pszFile);
 	return ret;
 }
 
@@ -1635,8 +1635,8 @@ HOOKDEF(LPWSTR, WINAPI, PathCombineW,
 	_In_           LPCWSTR pszFile
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathCombineW\n");
-	LPWSTR ret = Old_PathCombineW(pszDest, pszDir, pszFile);
 	LOQ_bool("filesystem", "FFF", "DestinyPath", pszDest, "Directory", pszDir, "FilePath", pszFile); // Modify category, LOQ_ function and log message according to your needs
+	LPWSTR ret = Old_PathCombineW(pszDest, pszDir, pszFile);
 	return ret;
 }
 
@@ -1647,8 +1647,8 @@ HOOKDEF(HRESULT, WINAPI, PathCchCombine,
 	_In_opt_ PCWSTR pszMore
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathCchCombine\n");
-	HRESULT ret = Old_PathCchCombine(pszPathOut, cchPathOut, pszPathIn, pszMore);
 	LOQ_bool("filesystem", "FhFF", "PathOut", pszPathOut, "PathOutSize", cchPathOut, "PathIn", pszPathIn, "PathMore", pszMore); // Modify category, LOQ_ function and log message according to your needs
+	HRESULT ret = Old_PathCchCombine(pszPathOut, cchPathOut, pszPathIn, pszMore);
 	return ret;
 }
 
@@ -1660,8 +1660,8 @@ HOOKDEF(HRESULT, WINAPI, PathCchCombineEx,
 	_In_ unsigned long dwFlags
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathCchCombineEx\n");
-	HRESULT ret = Old_PathCchCombineEx(pszPathOut, cchPathOut, pszPathIn, pszMore, dwFlags);
 	LOQ_bool("filesystem", "FhFFh", "PathOut", pszPathOut, "PathOutSize", cchPathOut, "PathIn", pszPathIn, "PathMore", pszMore, "Flags", dwFlags); // Modify category, LOQ_ function and log message according to your needs
+	HRESULT ret = Old_PathCchCombineEx(pszPathOut, cchPathOut, pszPathIn, pszMore, dwFlags);
 	return ret;
 }
 
@@ -1672,8 +1672,8 @@ HOOKDEF(HRESULT, WINAPI, PathAllocCombine,
 	_Out_ PWSTR* ppszPathOut
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathAllocCombine\n");
-	HRESULT ret = Old_PathAllocCombine(pszPathIn, pszMore, dwFlags, ppszPathOut);
 	LOQ_bool("filesystem", "FFhF", "PathIn", pszPathIn, "PathMore", pszMore, "Flags", dwFlags, "PathOut", *ppszPathOut); // Modify category, LOQ_ function and log message according to your needs
+	HRESULT ret = Old_PathAllocCombine(pszPathIn, pszMore, dwFlags, ppszPathOut);
 	return ret;
 }
 
@@ -1692,8 +1692,8 @@ HOOKDEF(BOOL, WINAPI, PathAddExtensionW,
 	_In_opt_ LPCWSTR pszExt
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathAddExtensionW\n");
-	BOOL ret = Old_PathAddExtensionW(pszPath, pszExt);
 	LOQ_bool("filesystem", "FF", "OriginalPath", pszPath, "ExtensionPath", pszExt); // Modify category, LOQ_ function and log message according to your needs
+	BOOL ret = Old_PathAddExtensionW(pszPath, pszExt);
 	return ret;
 }
 
@@ -1703,7 +1703,7 @@ HOOKDEF(HRESULT, WINAPI, PathCchRenameExtension,
 	_In_ PCWSTR pszExt
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked PathCchRenameExtension\n");
-	HRESULT ret = Old_PathCchRenameExtension(pszPath, cchPath, pszExt);
 	LOQ_bool("filesystem", "FhF", "OriginalPath", pszPath, "PathSize", cchPath, "ExtensionPath", pszExt); // Modify category, LOQ_ function and log message according to your needs
+	HRESULT ret = Old_PathCchRenameExtension(pszPath, cchPath, pszExt);
 	return ret;
 }
