@@ -1560,7 +1560,7 @@ HOOKDEF(PVOID, WINAPI, LocalAlloc,
 	_In_ SIZE_T uBytes)
 {
 	PVOID ret = Old_LocalAlloc(uFlags, uBytes);
-	LOQ_nonnull("misc", "ii", "Flags", uFlags, "Bytes", uBytes);
+	LOQ_nonnull("misc", "hh", "Flags", uFlags, "Bytes", uBytes);
 	return ret;
 }
 
@@ -1825,10 +1825,11 @@ HOOKDEF(LPVOID, WINAPI, HeapAlloc,
 	_In_ DWORD dwFlags,
 	_In_ SIZE_T dwBytes
 ) {
-	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked HeapAlloc\n");
-	LPVOID ret = Old_HeapAlloc(hHeap, dwFlags, dwBytes);
-	LOQ_bool("misc", "ih", "Flags", dwFlags, "Number of bytes", dwBytes); // Modify category, LOQ_ function and log message according to your needs
-	return ret;
+	//DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked HeapAlloc\n");
+	//LPVOID ret = Old_HeapAlloc(hHeap, dwFlags, dwBytes);
+	//LOQ_nonnull("misc", "Phh", "Handle", hHeap, "Flags", dwFlags, "Number of bytes", dwBytes); // Modify category, LOQ_ function and log message according to your needs
+	//return ret;
+	return Old_HeapAlloc(hHeap, dwFlags, dwBytes);
 }
 
 HOOKDEF(LPVOID, WINAPI, VirtualAlloc,
@@ -1839,7 +1840,7 @@ HOOKDEF(LPVOID, WINAPI, VirtualAlloc,
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked VirtualAlloc\n");
 	LPVOID ret = Old_VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
-	LOQ_bool("misc", "hii", "Size", dwSize, "AllocationType", flAllocationType, "Protection", flProtect); // Modify category, LOQ_ function and log message according to your needs
+	LOQ_nonnull("misc", "Phhh", "lpAddress", lpAddress, "Size", dwSize, "AllocationType", flAllocationType, "Protection", flProtect); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
 
@@ -1849,7 +1850,7 @@ HOOKDEF(HGLOBAL, WINAPI, GlobalAlloc,
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GlobalAlloc\n");
 	HGLOBAL ret = Old_GlobalAlloc(uFlags, dwBytes);
-	LOQ_bool("misc", "hh", "Flags", uFlags, "Bytes", dwBytes); // Modify category, LOQ_ function and log message according to your needs
+	LOQ_nonnull("misc", "hh", "Flags", uFlags, "Bytes", dwBytes); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
 
@@ -1861,5 +1862,16 @@ HOOKDEF(HLOCAL, WINAPI, LocalAlloc,
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked LocalAlloc\n");
 	HLOCAL ret = Old_LocalAlloc(uFlags, uBytes);
 	LOQ_bool("misc", "hh", "Flags", uFlags, "Bytes", uBytes); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(PVOID, WINAPI, RtlAllocateHeap,
+	_In_           PVOID  HeapHandle,
+	_In_opt_ ULONG  Flags,
+	_In_           SIZE_T Size
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked RtlAllocateHeap\n");
+	NTSYSAPI PVOID ret = Old_RtlAllocateHeap(HeapHandle, Flags, Size);
+	LOQ_bool("misc", "Phh", "HeapHandle", HeapHandle, "Flags", Flags, "Size", Size); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }*/

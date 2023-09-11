@@ -3658,3 +3658,9 @@ HOOKDEF(HLOCAL, WINAPI, LocalAlloc,
 	_In_ SIZE_T uBytes
 );
 
+/*
+HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
+	_In_           PVOID  HeapHandle,
+	_In_opt_ ULONG  Flags,
+	_In_           SIZE_T Size
+);*/
