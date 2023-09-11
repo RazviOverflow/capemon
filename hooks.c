@@ -638,7 +638,7 @@ hook_t full_hooks[] = {
 	HOOK(shlwapi, PathRenameExtensionW),
 	HOOK(shlwapi, PathCombineA),
 	HOOK(shlwapi, PathCombineW),
-	HOOK(pathcch, PathCchCombine),
+	// HOOK(pathcch, PathCchCombine), // Internally calls to PathCchCombineEx
 	HOOK(pathcch, PathCchCombineEx),
 	HOOK(pathcch, PathAllocCombine),
 	HOOK(shlwapi, PathAddExtensionA),
