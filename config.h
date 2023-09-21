@@ -229,6 +229,7 @@ struct _g_config {
 	char break_on_return[MAX_PATH];
 	BOOLEAN break_on_return_set;
 	BOOLEAN break_on_apiname_set;
+	BOOLEAN break_on_jit;
 
 	// debugger breakpoints
 	PVOID bp0, bp1, bp2, bp3;
@@ -247,6 +248,7 @@ struct _g_config {
 	char typestring[MAX_PATH], typestring0[MAX_PATH], typestring1[MAX_PATH], typestring2[MAX_PATH], typestring3[MAX_PATH];
 	PVOID bp[BREAKPOINT_MAX], sysbp[SYSBP_MAX];
 	char *action[BREAKPOINT_MAX];
+	BOOLEAN loopskip;
 
 	int trace_all;
 	int step_out;

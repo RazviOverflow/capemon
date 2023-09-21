@@ -1776,6 +1776,12 @@ HOOKDEF(BOOL, WINAPI, GetComputerNameW,
 	_Inout_  LPDWORD lpnSize
 );
 
+HOOKDEF(BOOL, WINAPI, GetComputerNameExW,
+	__in	int NameType,
+	__out	LPWSTR lpBuffer,
+	__out	LPDWORD nSize
+);
+
 HOOKDEF(BOOL, WINAPI, GetUserNameA,
 	_Out_	PCTSTR lpBuffer,
 	_Inout_  LPDWORD lpnSize
@@ -3664,3 +3670,11 @@ HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
 	_In_opt_ ULONG  Flags,
 	_In_           SIZE_T Size
 );*/
+HOOKDEF(int, WINAPI, compileMethod,
+	PVOID			this,
+	PVOID			compHnd,
+	PVOID			methodInfo,
+	unsigned int	flags,
+	uint8_t**		entryAddress,
+	uint32_t*		nativeSizeOfCode
+);

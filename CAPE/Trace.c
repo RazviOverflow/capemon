@@ -37,6 +37,7 @@ along with this program.If not, see <http://www.gnu.org/licenses/>.
 extern void DebugOutput(_In_ LPCTSTR lpOutputString, ...);
 extern void ErrorOutput(_In_ LPCTSTR lpOutputString, ...);
 extern void DebuggerOutput(_In_ LPCTSTR lpOutputString, ...);
+extern void StringsOutput(_In_ LPCTSTR lpOutputString, ...);
 extern int DumpMemory(LPVOID Buffer, SIZE_T Size);
 extern PCHAR GetNameBySsn(unsigned int Number);
 extern void log_anomaly(const char *subcategory, const char *msg);
@@ -54,10 +55,10 @@ extern void log_flush();
 extern PVOID _KiUserExceptionDispatcher;
 
 char *ModuleName, *PreviousModuleName;
-PVOID ModuleBase, DumpAddress, ReturnAddress, BreakOnReturnAddress, BreakOnNtContinueCallback;
+PVOID ModuleBase, DumpAddress, ReturnAddress, BreakOnReturnAddress, BreakOnNtContinueCallback, PreviousJumps[4];
 BOOL BreakpointsSet, BreakpointsHit, FilterTrace, StopTrace, ModTimestamp, ReDisassemble;
 BOOL GetSystemTimeAsFileTimeImported, PayloadMarker, PayloadDumped, TraceRunning, BreakOnNtContinue;
-unsigned int DumpCount, Correction, StepCount, StepLimit, TraceDepthLimit, BreakOnReturnRegister;
+unsigned int DumpCount, Correction, StepCount, StepLimit, TraceDepthLimit, BreakOnReturnRegister, JumpCount;
 char Action0[MAX_PATH], Action1[MAX_PATH], Action2[MAX_PATH], Action3[MAX_PATH];
 char *Instruction0, *Instruction1, *Instruction2, *Instruction3, *procname0;
 unsigned int Type0, Type1, Type2, Type3;
@@ -196,15 +197,35 @@ void StringCheck(PVOID PossibleString)
 	SIZE_T Size = StrTest(PossibleString, OutputBuffer, MAX_PATH);
 	if (Size > 64)
 		DebuggerOutput(" \"%.64s...\"", (PCHAR)OutputBuffer);
-	else if (Size > 3)
+	else if (Size)
 		DebuggerOutput(" \"%.64s\"", (PCHAR)OutputBuffer);
 	else
 	{
 		Size = StrTestW(PossibleString, OutputBufferW, MAX_PATH*sizeof(WCHAR));
 		if (Size > 64)
 			DebuggerOutput(" L\"%.64ws...\"", (PWCHAR)OutputBufferW);
-		else if (Size > 3)
+		else if (Size)
 			DebuggerOutput(" L\"%.64ws\"", (PWCHAR)OutputBufferW);
+	}
+}
+
+void DoOutputString(PVOID PossibleString)
+{
+	char OutputBuffer[MAX_PATH] = "";
+	WCHAR OutputBufferW[MAX_PATH] = L"";
+
+	SIZE_T Size = StrTest(PossibleString, OutputBuffer, MAX_PATH);
+	if (Size >= MAX_PATH)
+		StringsOutput("%.256s...\n", (PCHAR)OutputBuffer);
+	else if (Size)
+		StringsOutput("%.256s\n", (PCHAR)OutputBuffer);
+	else
+	{
+		Size = StrTestW(PossibleString, OutputBufferW, MAX_PATH*sizeof(WCHAR));
+		if (Size >= MAX_PATH)
+			StringsOutput("L%.256ws...\n", (PWCHAR)OutputBufferW);
+		else if (Size)
+			StringsOutput("L%.256ws\n", (PWCHAR)OutputBufferW);
 	}
 }
 
@@ -1217,43 +1238,55 @@ void ActionDispatcher(struct _EXCEPTION_POINTERS* ExceptionInfo, _DecodedInst De
 	}
 	else if (!strnicmp(Action, "SetBp0", 6))
 	{
+		PVOID Base = GetAllocationBase(CIP);
 		if (Target)
 		{
+			if ((PUCHAR)Target < (PUCHAR)Base)
+				Target = (PVOID)((PUCHAR)Target + (DWORD_PTR)Base);
 			ContextSetThreadBreakpoint(ExceptionInfo->ContextRecord, 0, 0, Target, BP_EXEC, 0, BreakpointCallback);
-			DebuggerOutput("SetBp0: Breakpoint 0 set to 0x%p.", Target);
+			DebuggerOutput("SetBp0: Breakpoint 0 set to 0x%p.\n", Target);
 		}
 		else
-			DebuggerOutput("SetBp0: Failed to obtain breakpoint address.");
+			DebuggerOutput("SetBp0: Failed to obtain breakpoint address.\n");
 	}
 	else if (!strnicmp(Action, "SetBp1", 6))
 	{
+		PVOID Base = GetAllocationBase(CIP);
 		if (Target)
 		{
+			if ((PUCHAR)Target < (PUCHAR)Base)
+				Target = (PVOID)((PUCHAR)Target + (DWORD_PTR)Base);
 			ContextSetThreadBreakpoint(ExceptionInfo->ContextRecord, 1, 0, Target, BP_EXEC, 0, BreakpointCallback);
-			DebuggerOutput("SetBp1: Breakpoint 1 set to 0x%p.", Target);
+			DebuggerOutput("SetBp1: Breakpoint 1 set to 0x%p.\n", Target);
 		}
 		else
-			DebuggerOutput("SetBp1: Failed to obtain breakpoint address.");
+			DebuggerOutput("SetBp1: Failed to obtain breakpoint address.\n");
 	}
 	else if (!strnicmp(Action, "SetBp2", 6))
 	{
+		PVOID Base = GetAllocationBase(CIP);
 		if (Target)
 		{
+			if ((PUCHAR)Target < (PUCHAR)Base)
+				Target = (PVOID)((PUCHAR)Target + (DWORD_PTR)Base);
 			ContextSetThreadBreakpoint(ExceptionInfo->ContextRecord, 2, 0, Target, BP_EXEC, 0, BreakpointCallback);
-			DebuggerOutput("SetBp2: Breakpoint 2 set to 0x%p.", Target);
+			DebuggerOutput("SetBp2: Breakpoint 2 set to 0x%p.\n", Target);
 		}
 		else
-			DebuggerOutput("SetBp2: Failed to obtain breakpoint address.");
+			DebuggerOutput("SetBp2: Failed to obtain breakpoint address.\n");
 	}
 	else if (!strnicmp(Action, "SetBp3", 6))
 	{
+		PVOID Base = GetAllocationBase(CIP);
 		if (Target)
 		{
+			if ((PUCHAR)Target < (PUCHAR)Base)
+				Target = (PVOID)((PUCHAR)Target + (DWORD_PTR)Base);
 			ContextSetThreadBreakpoint(ExceptionInfo->ContextRecord, 3, 0, Target, BP_EXEC, 0, BreakpointCallback);
-			DebuggerOutput("SetBp3: Breakpoint 3 set to 0x%p.", Target);
+			DebuggerOutput("SetBp3: Breakpoint 3 set to 0x%p.\n", Target);
 		}
 		else
-			DebuggerOutput("SetBp3: Failed to obtain breakpoint address.");
+			DebuggerOutput("SetBp3: Failed to obtain breakpoint address.\n");
 	}
 	else if (!stricmp(Action, "DumpStack"))
 	{
@@ -1288,6 +1321,16 @@ void ActionDispatcher(struct _EXCEPTION_POINTERS* ExceptionInfo, _DecodedInst De
 				}
 			}
 		}
+	}
+	else if (!strnicmp(Action, "String", 6))
+	{
+		if (Target)
+		{
+			DoOutputString(Target);
+			DebuggerOutput("String captured at 0x%p\n", Target);
+		}
+		else
+			DebuggerOutput("String: Failed to obtain string address.\n");
 	}
 	else if (stricmp(Action, "custom"))
 		DebuggerOutput("ActionDispatcher: Unrecognised action: (%s)\n", Action);
@@ -1581,13 +1624,38 @@ void InstructionHandler(struct _EXCEPTION_POINTERS* ExceptionInfo, _DecodedInst 
 		else if (!FilterTrace || g_config.trace_all)
 			TraceOutput(CIP, DecodedInstruction);
 	}
-	//else if (!strncmp(DecodedInstruction.mnemonic.p, "REP ", 4) || !strncmp(DecodedInstruction.mnemonic.p, "LOOP", 4))
-	else if (!strncmp(DecodedInstruction.mnemonic.p, "LOOP", 4))
+	else if (g_config.loopskip && !strncmp(DecodedInstruction.mnemonic.p, "REP ", 3) || !strncmp(DecodedInstruction.mnemonic.p, "LOOP", 4))
 	{
 		if (!FilterTrace || g_config.trace_all)
 			TraceOutput(CIP, DecodedInstruction);
-		ReturnAddress = (PVOID)((PUCHAR)CIP + DecodedInstruction.size);
-		*ForceStepOver = TRUE;
+#ifdef _WIN64
+		if (ExceptionInfo->ContextRecord->Rcx > 1)
+#else
+		if (ExceptionInfo->ContextRecord->Ecx > 1)
+#endif
+		{
+			ReturnAddress = (PVOID)((PUCHAR)CIP + DecodedInstruction.size);
+			*ForceStepOver = TRUE;
+			DebuggerOutput(" *** skip *** ");
+		}
+	}
+	else if (g_config.loopskip && !strnicmp(DecodedInstruction.mnemonic.p, "j", 1) && DecodedInstruction.size == 2)
+	{
+		int JumpOffset = (int)*((PCHAR)CIP + 1);
+		PVOID JumpTarget = (PVOID)((PUCHAR)CIP + DecodedInstruction.size + JumpOffset);
+		if (!FilterTrace || g_config.trace_all)
+			TraceOutputFuncAddress(CIP, DecodedInstruction, JumpTarget);
+		for (unsigned int i = 0; i < 4; i++)
+		{
+			if (JumpOffset < 0 && PreviousJumps[i] == CIP)
+			{
+				ReturnAddress = (PVOID)((PUCHAR)CIP + DecodedInstruction.size);
+				*ForceStepOver = TRUE;
+				DebuggerOutput(" *** skip *** ");
+			}
+		}
+		PreviousJumps[JumpCount % 4] = CIP;
+		JumpCount++;
 	}
 #ifndef _WIN64
 	else if (!strcmp(DecodedInstruction.mnemonic.p, "CALL FAR") && !strncmp(DecodedInstruction.operands.p, "0x33", 4))
@@ -2198,7 +2266,9 @@ BOOL BreakpointCallback(PBREAKPOINTINFO pBreakpointInfo, struct _EXCEPTION_POINT
 	{
 		if (ContextSetNextAvailableBreakpoint(ExceptionInfo->ContextRecord, &StepOverRegister, 0, (BYTE*)ReturnAddress, BP_EXEC, 1, BreakpointCallback))
 		{
+#ifdef DEBUG_COMMENTS
 			DebugOutput("BreakpointCallback: Set breakpoint on return address 0x%p\n", ReturnAddress);
+#endif
 			ReturnAddress = NULL;
 		}
 		else

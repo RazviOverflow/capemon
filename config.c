@@ -1089,7 +1089,7 @@ void parse_config_line(char* line)
 				DebugOutput("Branch tracing enabled.\n");
 		}
 		else if (!stricmp(key, "unpacker")) {
-			g_config.unpacker = (unsigned int)strtoul(value, NULL, 10);;
+			g_config.unpacker = (unsigned int)strtoul(value, NULL, 10);
 			if (g_config.unpacker == 1)
 				DebugOutput("Passive unpacking of payloads enabled\n");
 			else if (g_config.unpacker == 2)
@@ -1199,6 +1199,16 @@ void parse_config_line(char* line)
 				DebugOutput("Syscall hooks enabled.\n");
 			else
 				DebugOutput("Syscall hooks disabled.\n");
+		}
+		else if (!stricmp(key, "loopskip")) {
+			g_config.loopskip = value[0] == '1';
+			if (g_config.loopskip)
+				DebugOutput("Loop skipping enabled (instruction trace)\n");
+		}
+		else if (!stricmp(key, "break-on-jit")) {
+			g_config.break_on_jit = value[0] == '1';
+			if (g_config.break_on_jit)
+				DebugOutput("Break on .NET JIT native code enabled.\n");
 		}
 		else if (stricmp(key, "no-iat"))
 			DebugOutput("CAPE debug - unrecognised key %s.\n", key);
@@ -1349,6 +1359,28 @@ int read_config(void)
 			g_config.yarascan = 0;
 			DebugOutput("Internet Explorer-specific hook-set enabled.\n");
         }
+
+		if (!_stricmp(our_process_name, "msedge.exe"))
+		{
+			g_config.edge = 1;
+			g_config.injection = 0;
+			g_config.api_rate_cap = 0;
+			g_config.ntdll_protect = 0;
+			g_config.yarascan = 0;
+			g_config.procmemdump = 0;
+			DebugOutput("Edge-specific hook-set enabled.\n");
+		}
+
+		if (!_stricmp(our_process_name, "chrome.exe"))
+		{
+			g_config.chrome = 1;
+			g_config.injection = 0;
+			g_config.api_rate_cap = 0;
+			g_config.ntdll_protect = 0;
+			g_config.yarascan = 0;
+			g_config.procmemdump = 0;
+			DebugOutput("Chrome-specific hook-set enabled.\n");
+		}
 
 		if (strstr(our_process_path, "Microsoft Office"))
         {
