@@ -3473,6 +3473,15 @@ HOOKDEF(BOOL, WINAPI, DisableThreadLibraryCalls,
 	__in HMODULE hLibModule
 );
 
+HOOKDEF(int, WINAPI, compileMethod,
+	PVOID			this,
+	PVOID			compHnd,
+	PVOID			methodInfo,
+	unsigned int	flags,
+	uint8_t** entryAddress,
+	uint32_t* nativeSizeOfCode
+);
+
 // Extension hooks
 HOOKDEF(FARPROC, WINAPI, GetProcAddress,
 	_In_	HMODULE	hModule,
@@ -3671,13 +3680,6 @@ HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
 	_In_opt_ ULONG  Flags,
 	_In_           SIZE_T Size
 );*/
-HOOKDEF(int, WINAPI, compileMethod,
-	PVOID			this,
-	PVOID			compHnd,
-	PVOID			methodInfo,
-	unsigned int	flags,
-	uint8_t**		entryAddress,
-	uint32_t*		nativeSizeOfCode
 );
 HOOKDEF(BOOL, WINAPI, CopyFileExW,
 	_In_	  LPWSTR lpExistingFileName,
