@@ -659,6 +659,7 @@ hook_t full_hooks[] = {
 	HOOK(kernelbase, DeleteFileW),
 	HOOK(kernel32, DeleteFileTransactedW),
 	HOOK(kernelbase, CopyFileExW),
+	HOOK(kernel32, CopyFile2)
 };
 
 // This hook set is intended to include only hooks which are necessary

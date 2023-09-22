@@ -3680,6 +3680,13 @@ HOOKDEF(NTSYSAPI PVOID, WINAPI, RtlAllocateHeap,
 	_In_opt_ ULONG  Flags,
 	_In_           SIZE_T Size
 );*/
+
+HOOKDEF(HRESULT, WINAPI, CopyFile2,
+	_In_ PCWSTR pwszExistingFileName,
+	_In_ PCWSTR pwszNewFileName,
+	_In_opt_ COPYFILE2_EXTENDED_PARAMETERS* pExtendedParameters
+);
+
 HOOKDEF(BOOL, WINAPI, DeleteFileTransactedW,
 	_In_ LPCWSTR lpFileName,
 	_In_ HANDLE  hTransaction

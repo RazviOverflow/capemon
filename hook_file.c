@@ -1706,6 +1706,17 @@ HOOKDEF(HRESULT, WINAPI, PathCchRenameExtension,
 	HRESULT ret = Old_PathCchRenameExtension(pszPath, cchPath, pszExt);
 	LOQ_bool("filesystem", "FhF", "OriginalPath", pszPath, "PathSize", cchPath, "ExtensionPath", pszExt); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
+HOOKDEF(HRESULT, WINAPI, CopyFile2,
+	_In_ PCWSTR pwszExistingFileName,
+	_In_ PCWSTR pwszNewFileName,
+	_In_opt_ COPYFILE2_EXTENDED_PARAMETERS* pExtendedParameters
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CopyFile2\n");
+	HRESULT ret = Old_CopyFile2(pwszExistingFileName, pwszNewFileName, pExtendedParameters);
+	//LOQ_bool("filesystem", "FFh", "pwszExistingFileName", pwszExistingFileName, "pwszNewFileName", pwszNewFileName, "Flags", pExtendedParameters->dwCopyFlags); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
 HOOKDEF(BOOL, WINAPI, DeleteFileTransactedW,
 	_In_ LPCWSTR lpFileName,
 	_In_ HANDLE  hTransaction
