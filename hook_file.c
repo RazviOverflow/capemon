@@ -1242,7 +1242,7 @@ HOOKDEF(BOOL, WINAPI, CopyFileW,
 
 	return ret;
 }
-
+/*
 HOOKDEF_NOTAIL(WINAPI, CopyFileExW,
 	_In_	  LPWSTR lpExistingFileName,
 	_In_	  LPWSTR lpNewFileName,
@@ -1289,7 +1289,7 @@ HOOKDEF_ALT(BOOL, WINAPI, CopyFileExW,
 		new_file_path_unicode(lpNewFileName);
 
 	return ret;
-}
+}*/
 HOOKDEF(BOOL, WINAPI, DeleteFileA,
 	__in  LPCSTR lpFileName
 ) {

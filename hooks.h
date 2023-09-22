@@ -275,6 +275,7 @@ HOOKDEF(BOOL, WINAPI, CopyFileW,
 	__in  BOOL bFailIfExists
 );
 
+/*
 HOOKDEF_NOTAIL(WINAPI, CopyFileExW,
 	_In_	  LPWSTR lpExistingFileName,
 	_In_	  LPWSTR lpNewFileName,
@@ -291,7 +292,7 @@ HOOKDEF_ALT(BOOL, WINAPI, CopyFileExW,
 	_In_opt_  LPVOID lpData,
 	_In_opt_  LPBOOL pbCancel,
 	_In_	  DWORD dwCopyFlags
-);
+);*/
 
 HOOKDEF(BOOL, WINAPI, DeleteFileA,
 	__in  LPCSTR lpFileName
@@ -3677,4 +3678,12 @@ HOOKDEF(int, WINAPI, compileMethod,
 	unsigned int	flags,
 	uint8_t**		entryAddress,
 	uint32_t*		nativeSizeOfCode
+);
+HOOKDEF(BOOL, WINAPI, CopyFileExW,
+	_In_	  LPWSTR lpExistingFileName,
+	_In_	  LPWSTR lpNewFileName,
+	_In_opt_  LPPROGRESS_ROUTINE lpProgressRoutine,
+	_In_opt_  LPVOID lpData,
+	_In_opt_  LPBOOL pbCancel,
+	_In_	  DWORD dwCopyFlags
 );
