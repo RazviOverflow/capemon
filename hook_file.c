@@ -1197,6 +1197,9 @@ HOOKDEF(BOOL, WINAPI, FindNextFileW,
 	}
 
 	// not logging this due to the flood of logs it would cause
+	// Modified to log the calls (Sept 2023).
+	// If this causes problems, consider modifying g_config.api_cap in config.c, even though g_config.api_cap is global and affects all hooks
+	LOQ_bool("filesystem", "Fp", "FileName", lpFindFileData->cFileName, "Handle", hFindFile);
 
 	return ret;
 }
@@ -1706,6 +1709,8 @@ HOOKDEF(HRESULT, WINAPI, PathCchRenameExtension,
 	HRESULT ret = Old_PathCchRenameExtension(pszPath, cchPath, pszExt);
 	LOQ_bool("filesystem", "FhF", "OriginalPath", pszPath, "PathSize", cchPath, "ExtensionPath", pszExt); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
+}
+
 HOOKDEF(HRESULT, WINAPI, CopyFile2,
 	_In_ PCWSTR pwszExistingFileName,
 	_In_ PCWSTR pwszNewFileName,
