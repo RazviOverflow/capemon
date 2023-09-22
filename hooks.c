@@ -657,6 +657,7 @@ hook_t full_hooks[] = {
 	HOOK(kernelbase, FindFirstFileExW),
 	HOOK(kernelbase, FindNextFileW),
 	HOOK(kernelbase, DeleteFileW),
+	HOOK(kernel32, DeleteFileTransactedW),
 	HOOK(kernelbase, CopyFileExW),
 };
 
