@@ -121,11 +121,11 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, CreateDirectoryExW),
 	HOOK(kernel32, RemoveDirectoryA),
 	HOOK(kernel32, RemoveDirectoryW),
-	HOOK(kernel32, FindFirstFileExA),
-	HOOK(kernel32, FindFirstFileExW),
-	HOOK(kernel32, FindNextFileW),
+	//HOOK(kernel32, FindFirstFileExA), // Covered by kernelbase_FindFirstFileExW
+	//HOOK(kernel32, FindFirstFileExW), // Covered by kernelbase_FindFirstFileExW
+	//HOOK(kernel32, FindNextFileW), // Covered by kernelbase_FindNextFileW
 	// Covered by NtCreateFile() but still grab this information
-	HOOK(kernel32, CopyFileA),
+	HOOK(kernel32, CopyFileA), 
 	HOOK(kernel32, CopyFileW),
 	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Oct 2023. Replaced by HOOK(kernelbase, CopyFileExW)
 	// Covered by NtSetInformationFile() but still grab this information
@@ -654,6 +654,10 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, GlobalAlloc),
 	HOOK(kernel32, LocalAlloc),
 	//HOOK(ntdll, RtlAllocateHeap), // Can't make it work
+	HOOK(kernelbase, FindFirstFileExW),
+	HOOK(kernelbase, FindNextFileW),
+	HOOK(kernelbase, DeleteFileW),
+	HOOK(kernelbase, CopyFileExW),
 };
 
 // This hook set is intended to include only hooks which are necessary
