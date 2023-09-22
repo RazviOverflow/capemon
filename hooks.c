@@ -129,8 +129,8 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, CopyFileW),
 	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Oct 2023. Replaced by HOOK(kernelbase, CopyFileExW)
 	// Covered by NtSetInformationFile() but still grab this information
-	HOOK(kernel32, DeleteFileA),
-	HOOK(kernel32, DeleteFileW),
+	//HOOK(kernel32, DeleteFileA), // Covered by kernelbase_DeleteFileW
+	//HOOK(kernel32, DeleteFileW), // Covered by kernelbase_DeleteFileW
 	HOOK(kernel32, GetDiskFreeSpaceExA),
 	HOOK(kernel32, GetDiskFreeSpaceExW),
 	HOOK(kernel32, GetDiskFreeSpaceA),
