@@ -1717,8 +1717,8 @@ HOOKDEF(HRESULT, WINAPI, CopyFile2,
 	_In_opt_ COPYFILE2_EXTENDED_PARAMETERS* pExtendedParameters
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CopyFile2\n");
-	HRESULT ret = Old_CopyFile2(pwszExistingFileName, pwszNewFileName, pExtendedParameters);
-	//LOQ_bool("filesystem", "FFh", "pwszExistingFileName", pwszExistingFileName, "pwszNewFileName", pwszNewFileName, "Flags", pExtendedParameters->dwCopyFlags); // Modify category, LOQ_ function and log message according to your needs
+	int ret = SUCCEEDED(Old_CopyFile2(pwszExistingFileName, pwszNewFileName, pExtendedParameters)); // SUCCEEDED must be called so as to tranform HRESULT https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-copyfile2#return-value
+	LOQ_bool("filesystem", "FFh", "pwszExistingFileName", pwszExistingFileName, "pwszNewFileName", pwszNewFileName); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
 
