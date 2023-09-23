@@ -648,7 +648,7 @@ hook_t full_hooks[] = {
 	HOOK(kernelbase, PathCchRenameExtension),
 	HOOK(kernel32, Thread32Next),
 	HOOK(kernel32, Thread32First),
-	//HOOK(kernel32, GetProcessHeap),
+	HOOK(kernel32, GetProcessHeap),
 	//HOOK(kernel32, HeapAlloc), // Not working.
 	HOOK(kernel32, VirtualAlloc), // Covered as well by NtAllocateVirtualMemory
 	HOOK(kernel32, GlobalAlloc),
@@ -659,7 +659,14 @@ hook_t full_hooks[] = {
 	HOOK(kernelbase, DeleteFileW),
 	HOOK(kernel32, DeleteFileTransactedW),
 	HOOK(kernelbase, CopyFileExW),
-	HOOK(kernel32, CopyFile2)
+	HOOK(kernel32, CopyFile2),
+	HOOK(kernel32, SetEnvironmentVariableA),
+	HOOK(kernel32, SetEnvironmentVariableW),
+	HOOK(kernel32, GetEnvironmentVariableA),
+	HOOK(kernel32, GetEnvironmentVariableW),
+	HOOK(kernel32, GetEnvironmentStrings),
+	HOOK(kernel32, ExpandEnvironmentStringsA),
+	HOOK(kernel32, ExpandEnvironmentStringsW),
 };
 
 // This hook set is intended to include only hooks which are necessary

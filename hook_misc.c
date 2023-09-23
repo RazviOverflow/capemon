@@ -1821,15 +1821,6 @@ HOOKDEF(BOOL, WINAPI, CloseHandle,
 	return ret;
 }
 
-HOOKDEF(HANDLE, WINAPI, GetProcessHeap,
-	void
-) {
-	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetProcessHeap\n");
-	HANDLE ret = Old_GetProcessHeap();
-	LOQ_bool("misc", ""); // Modify category, LOQ_ function and log message according to your needs
-	return ret;
-}
-
 HOOKDEF(LPVOID, WINAPI, HeapAlloc,
 	_In_ HANDLE hHeap,
 	_In_ DWORD dwFlags,
@@ -1885,3 +1876,85 @@ HOOKDEF(PVOID, WINAPI, RtlAllocateHeap,
 	LOQ_bool("misc", "Phh", "HeapHandle", HeapHandle, "Flags", Flags, "Size", Size); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }*/
+
+HOOKDEF(BOOL, WINAPI, SetEnvironmentVariableA,
+	_In_           LPCSTR lpName,
+	_In_opt_ LPCSTR lpValue
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked SetEnvironmentVariableA\n");
+	BOOL ret = Old_SetEnvironmentVariableA(lpName, lpValue);
+	LOQ_nonzero("misc", "ss", "Name", lpName, "Value", lpValue); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, SetEnvironmentVariableW,
+	_In_           LPCWSTR lpName,
+	_In_opt_ LPCWSTR lpValue
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked SetEnvironmentVariableW\n");
+	BOOL ret = Old_SetEnvironmentVariableW(lpName, lpValue);
+	LOQ_nonzero("misc", "uu", "Name", lpName, "Value", lpValue); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(DWORD, WINAPI, GetEnvironmentVariableA,
+	_In_opt_  LPCSTR lpName,
+	_Out_opt_ LPSTR  lpBuffer,
+	_In_            DWORD  nSize
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetEnvironmentVariableA\n");
+	DWORD ret = Old_GetEnvironmentVariableA(lpName, lpBuffer, nSize);
+	LOQ_nonzero("misc", "ssi", "Name", lpName, "Buffer", lpBuffer, "Size", nSize); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(DWORD, WINAPI, GetEnvironmentVariableW,
+	_In_opt_  LPCWSTR lpName,
+	_Out_opt_ LPWSTR  lpBuffer,
+	_In_            DWORD   nSize
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetEnvironmentVariableW\n");
+	DWORD ret = Old_GetEnvironmentVariableW(lpName, lpBuffer, nSize);
+	LOQ_nonzero("misc", "uui", "Name", lpName, "Buffer", lpBuffer, "Size", nSize); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(LPTCH, WINAPI, GetEnvironmentStrings,
+	void
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetEnvironmentStrings\n");
+	LPTCH ret = Old_GetEnvironmentStrings();
+	LOQ_nonnull("misc", ""); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(DWORD, WINAPI, ExpandEnvironmentStringsA,
+	_In_            LPCSTR lpSrc,
+	_Out_opt_ LPSTR  lpDst,
+	_In_            DWORD  nSize
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked ExpandEnvironmentStringsA\n");
+	DWORD ret = Old_ExpandEnvironmentStringsA(lpSrc, lpDst, nSize);
+	LOQ_nonzero("misc", "ssi", "Source", lpSrc, "Destiny", lpDst, "Size", nSize); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(DWORD, WINAPI, ExpandEnvironmentStringsW,
+	_In_            LPCWSTR lpSrc,
+	_Out_opt_ LPWSTR  lpDst,
+	_In_            DWORD   nSize
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked ExpandEnvironmentStringsW\n");
+	DWORD ret = Old_ExpandEnvironmentStringsW(lpSrc, lpDst, nSize);
+	LOQ_nonzero("misc", "uui", "Source", lpSrc, "Destiny", lpDst, "Size", nSize); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(HANDLE, WINAPI, GetProcessHeap,
+	void
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetProcessHeap\n");
+	HANDLE ret = Old_GetProcessHeap();
+	LOQ_nonzero("misc", ""); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}

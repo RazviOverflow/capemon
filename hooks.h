@@ -3700,3 +3700,41 @@ HOOKDEF(BOOL, WINAPI, CopyFileExW,
 	_In_opt_  LPBOOL pbCancel,
 	_In_	  DWORD dwCopyFlags
 );
+
+HOOKDEF(BOOL, WINAPI, SetEnvironmentVariableA,
+	_In_           LPCSTR lpName,
+	_In_opt_ LPCSTR lpValue
+);
+
+HOOKDEF(BOOL, WINAPI, SetEnvironmentVariableW,
+	_In_           LPCWSTR lpName,
+	_In_opt_ LPCWSTR lpValue
+);
+
+HOOKDEF(DWORD, WINAPI, GetEnvironmentVariableA,
+	_In_opt_  LPCSTR lpName,
+	_Out_opt_ LPSTR  lpBuffer,
+	_In_            DWORD  nSize
+);
+
+HOOKDEF(DWORD, WINAPI, GetEnvironmentVariableW,
+	_In_opt_  LPCWSTR lpName,
+	_Out_opt_ LPWSTR  lpBuffer,
+	_In_            DWORD   nSize
+);
+
+HOOKDEF(LPTCH, WINAPI, GetEnvironmentStrings,
+	void
+);
+
+HOOKDEF(DWORD, WINAPI, ExpandEnvironmentStringsA,
+	_In_            LPCSTR lpSrc,
+	_Out_opt_ LPSTR  lpDst,
+	_In_            DWORD  nSize
+);
+
+HOOKDEF(DWORD, WINAPI, ExpandEnvironmentStringsW,
+	_In_            LPCWSTR lpSrc,
+	_Out_opt_ LPWSTR  lpDst,
+	_In_            DWORD   nSize
+);
