@@ -127,7 +127,7 @@ hook_t full_hooks[] = {
 	// Covered by NtCreateFile() but still grab this information
 	HOOK(kernel32, CopyFileA), 
 	HOOK(kernel32, CopyFileW),
-	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Oct 2023. Replaced by HOOK(kernelbase, CopyFileExW)
+	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Sept, 2023. Replaced by HOOK(kernelbase, CopyFileExW)
 	// Covered by NtSetInformationFile() but still grab this information
 	//HOOK(kernel32, DeleteFileA), // Covered by kernelbase_DeleteFileW
 	//HOOK(kernel32, DeleteFileW), // Covered by kernelbase_DeleteFileW
@@ -731,7 +731,7 @@ hook_t min_hooks[] = {
 	HOOK(ntdll, NtDeleteFile),
 	HOOK(kernel32, CopyFileA),
 	HOOK(kernel32, CopyFileW),
-	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Oct 2023. Replaced by HOOK(kernelbase, CopyFileExW)
+	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Sept, 2023. Replaced by HOOK(kernelbase, CopyFileExW)
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressW, 5),
 	HOOK_NOTAIL_ALT(kernelbase, MoveFileWithProgressTransactedW, 6),
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressTransactedW, 6),
@@ -832,7 +832,7 @@ hook_t office_hooks[] = {
 	// Covered by NtCreateFile() but still grab this information
 	HOOK(kernel32, CopyFileA),
 	HOOK(kernel32, CopyFileW),
-	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Oct 2023. Replaced by HOOK(kernelbase, CopyFileExW)
+	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Sept, 2023. Replaced by HOOK(kernelbase, CopyFileExW)
 	// Covered by NtSetInformationFile() but still grab this information
 	HOOK(kernel32, DeleteFileA),
 	HOOK(kernel32, DeleteFileW),
@@ -1342,7 +1342,7 @@ hook_t ie_hooks[] = {
 	HOOK(ntdll, NtDeleteFile),
 	HOOK(kernel32, CopyFileA),
 	HOOK(kernel32, CopyFileW),
-	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Oct 2023. Replaced by HOOK(kernelbase, CopyFileExW)
+	//HOOK_NOTAIL_ALT(kernel32, CopyFileExW, 6), // Modified on Sept, 2023. Replaced by HOOK(kernelbase, CopyFileExW)
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressW, 5),
 	HOOK_NOTAIL_ALT(kernelbase, MoveFileWithProgressTransactedW, 6),
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressTransactedW, 6),
