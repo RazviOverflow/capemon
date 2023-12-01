@@ -152,9 +152,15 @@ HOOKDEF(BOOL, WINAPI, CryptEncrypt,
 		DumpMemoryRaw(pbData, *pdwDataLen);
 		DebugOutput("CryptEncrypt hook: Dumped unencrypted buffer at 0x%p (size 0x%x).\n", pbData, *pdwDataLen);
 	}
+
+	// Code added on Sept, 2023 to log in the behavioral analysis trace the plaintext being encrypted
+	PVOID plaintext = (PVOID)((BYTE*)malloc(dwBufLen));
+	memcpy(plaintext, pbData, dwBufLen);
+	// ---- //
+
 	BOOL ret = Old_CryptEncrypt(hKey, hHash, Final, dwFlags, pbData, pdwDataLen, dwBufLen);
-	LOQ_bool("crypto", "ppbii", "CryptKey", hKey, "CryptHash", hHash,
-		"Buffer", dwBufLen, pbData, "Length", *pdwDataLen, "Final", Final);
+	LOQ_bool("crypto", "ppbiis", "CryptKey", hKey, "CryptHash", hHash,
+		"Buffer", dwBufLen, pbData, "Length", *pdwDataLen, "Final", Final, "Plaintext", plaintext);
 	disable_tail_call_optimization();
 	return ret;
 }
