@@ -621,7 +621,7 @@ hook_t full_hooks[] = {
 	HOOK(cryptsp, CryptImportKey),
 
 	// Extension hooks
-	HOOK(kernel32, GetProcAddress), // process
+	//HOOK(kernel32, GetProcAddress), // (process) Disabled on Dec 1, 2023 because sometimes it causes __anomaly__. Covered by LdrGetProcedureAddressForCaller in Windows 10. 
 	HOOK(kernel32, GetModuleHandleA), // misc
 	HOOK(kernel32, GetModuleHandleW), // misc
 	HOOK(kernel32, Sleep), // threading (hook_sleep.c)
