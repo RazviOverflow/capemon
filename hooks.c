@@ -235,6 +235,8 @@ hook_t full_hooks[] = {
 	HOOK(user32, SetWindowLongW),
 	HOOK(user32, SetWindowLongPtrA),
 	HOOK(user32, SetWindowLongPtrW),
+	HOOK(user32, EnumDisplayDevicesA),
+	HOOK(user32, EnumDisplayDevicesW),
 //	HOOK_NOTAIL(user32, CreateWindowExA, 12),	// maldoc detonation issues
 //	HOOK_NOTAIL(user32, CreateWindowExW, 12),	//
 //	HOOK(user32, EnumWindows),	// Disable for now, invokes a user-specified callback that can contain
@@ -321,6 +323,7 @@ hook_t full_hooks[] = {
 	HOOK(ntdll, NtQueryInformationThread),
 	HOOK(ntdll, NtYieldExecution),
 	HOOK(ntdll, NtContinue),
+	HOOK(ntdll, NtContinueEx),
 	HOOK(kernel32, CreateThread),
 	HOOK(kernel32, CreateRemoteThread),
 	HOOK(kernel32, SwitchToThread),
@@ -705,6 +708,7 @@ hook_t min_hooks[] = {
 	HOOK(kernel32, WriteProcessMemory),
 
 	HOOK(ntdll, NtContinue),
+	HOOK(ntdll, NtContinueEx),
 	HOOK(ntdll, NtQueueApcThread),
 	HOOK(ntdll, NtQueueApcThreadEx),
 	HOOK(ntdll, NtCreateThread),
@@ -736,7 +740,6 @@ hook_t min_hooks[] = {
 	HOOK_NOTAIL_ALT(kernelbase, MoveFileWithProgressTransactedW, 6),
 	HOOK_NOTAIL_ALT(kernel32, MoveFileWithProgressTransactedW, 6),
 
-	HOOK(ntdll, NtClose),
 	HOOK(ntdll, NtResumeThread),
 	HOOK(ntdll, NtResumeProcess),
 	HOOK(ntdll, NtTerminateProcess),
@@ -1455,6 +1458,7 @@ void set_hooks()
 	PHANDLE suspended_threads = (PHANDLE)calloc(4096, sizeof(HANDLE));
 	DWORD our_tid = GetCurrentThreadId();
 	DWORD our_pid = GetCurrentProcessId();
+	unsigned int Hooked = 0;
 
 	BOOL TestHooks = FALSE;
 
@@ -1540,6 +1544,8 @@ void set_hooks()
 		//DebugOutput("set_hooks: Hooking %s", (hooks+i)->funcname);
 		if (hook_api(hooks+i, g_config.hook_type) < 0)
 			pipe("WARNING:Unable to hook %z", (hooks+i)->funcname);
+		else
+			Hooked++;
 	}
 
 	for (unsigned int i = 0; i < num_suspended_threads; i++) {
@@ -1553,6 +1559,8 @@ void set_hooks()
 		pLdrRegisterDllNotification(0, &New_DllLoadNotification, NULL, &g_dll_notify_cookie);
 	else
 		register_dll_notification_manually(&New_DllLoadNotification);
+
+	DebugOutput("Hooked %d functions\n", Hooked);
 
 	hook_enable();
 }

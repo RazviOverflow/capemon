@@ -172,7 +172,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtCreateThread,
 #ifdef DEBUG_COMMENTS
 			DebugOutput("NtCreateThread: Initialising breakpoints for thread %d.\n", tid);
 #endif
-			InitNewThreadBreakpoints(tid, *ThreadHandle);
+			InitNewThreadBreakpoints(tid);
 		}
 
 		if (pid != GetCurrentProcessId()) {
@@ -236,7 +236,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtCreateThreadEx,
 #ifdef DEBUG_COMMENTS
 			DebugOutput("NtCreateThreadEx: Initialising breakpoints for thread %d.\n", tid);
 #endif
-			InitNewThreadBreakpoints(tid, *hThread);
+			InitNewThreadBreakpoints(tid);
 		}
 
 		if (!(CreateFlags & 1)) {
@@ -498,7 +498,7 @@ HOOKDEF(HANDLE, WINAPI, CreateThread,
 #ifdef DEBUG_COMMENTS
 			DebugOutput("CreateThread: Initialising breakpoints for thread %d.\n", *lpThreadId);
 #endif
-			InitNewThreadBreakpoints(*lpThreadId, ret);
+			InitNewThreadBreakpoints(*lpThreadId);
 		}
 
 		if (!(dwCreationFlags & CREATE_SUSPENDED)) {
@@ -551,7 +551,7 @@ HOOKDEF(HANDLE, WINAPI, CreateRemoteThread,
 #ifdef DEBUG_COMMENTS
 			DebugOutput("CreateRemoteThread: Initialising breakpoints for (local) thread %d.\n", *lpThreadId);
 #endif
-			InitNewThreadBreakpoints(*lpThreadId, ret);
+			InitNewThreadBreakpoints(*lpThreadId);
 		}
 
 		if (!(dwCreationFlags & CREATE_SUSPENDED)) {
@@ -603,7 +603,7 @@ HOOKDEF(NTSTATUS, WINAPI, RtlCreateUserThread,
 #ifdef DEBUG_COMMENTS
 			DebugOutput("RtlCreateUserThread: Initialising breakpoints for (local) thread %d.\n", tid);
 #endif
-			InitNewThreadBreakpoints(tid, ThreadHandle);
+			InitNewThreadBreakpoints(tid);
 		}
 		if (CreateSuspended == FALSE && is_valid_address_range((ULONG_PTR)ThreadHandle, 4)) {
 			lasterror_t lasterror;
@@ -677,9 +677,19 @@ HOOKDEF(NTSTATUS, WINAPI, NtContinue,
 )
 {
 	NTSTATUS ret = 0;
-	if (g_config.debugger)
-		NtContinueHandler(ThreadContext);
+	NtContinueHandler(ThreadContext);
 	ret = Old_NtContinue(ThreadContext, RaiseAlert);
+	return ret;
+}
+
+HOOKDEF(NTSTATUS, WINAPI, NtContinueEx,
+	IN PCONTEXT ThreadContext,
+	IN PVOID ContinueArgument
+)
+{
+	NTSTATUS ret = 0;
+	NtContinueHandler(ThreadContext);
+	ret = Old_NtContinueEx(ThreadContext, ContinueArgument);
 	return ret;
 }
 

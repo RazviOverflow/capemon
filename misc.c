@@ -18,10 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 #include <ctype.h>
+#include <wctype.h>
 #include "ntapi.h"
 #include <Psapi.h>
 #include <shlwapi.h>
 #include <sddl.h>
+#include <ws2tcpip.h>
 #include "misc.h"
 #include "hooking.h"
 #include "log.h"
@@ -48,6 +50,7 @@ _NtProtectVirtualMemory pNtProtectVirtualMemory;
 _NtFreeVirtualMemory pNtFreeVirtualMemory;
 _LdrRegisterDllNotification pLdrRegisterDllNotification;
 _RtlNtStatusToDosError pRtlNtStatusToDosError;
+_RtlCompareMemory pRtlCompareMemory;
 
 void resolve_runtime_apis(void)
 {
@@ -74,6 +77,7 @@ void resolve_runtime_apis(void)
 	*(FARPROC *)&pNtUnmapViewOfSection = GetProcAddress(ntdllbase, "NtUnmapViewOfSection");
 	*(FARPROC *)&pRtlAdjustPrivilege = GetProcAddress(ntdllbase, "RtlAdjustPrivilege");
 	*(FARPROC *)&pRtlNtStatusToDosError = GetProcAddress(ntdllbase, "RtlNtStatusToDosError");
+	*(FARPROC *)&pRtlCompareMemory = GetProcAddress(ntdllbase, "RtlCompareMemory");
 }
 
 ULONG_PTR g_our_dll_base;
@@ -144,6 +148,11 @@ void addr_to_string(const IN_ADDR addr, char *string)
 	num_to_string(string+strlen(string), 4, chunk[2]);
 	strcat(string, ".");
 	num_to_string(string+strlen(string), 4, chunk[3]);
+}
+
+void addr6_to_string(const IN6_ADDR addr, char *string, int max_buffer_size)
+{
+	inet_ntop(AF_INET6, &addr, string, max_buffer_size);
 }
 
 wchar_t *ascii_to_unicode_dup(char *str)
@@ -256,7 +265,7 @@ void replace_ci_wstring_in_buf(PWCHAR buf, ULONG len, PWCHAR findstr, PWCHAR rep
 }
 
 // https://stackoverflow.com/questions/27303062/strstr-function-like-that-ignores-upper-or-lower-case
-char* stristr(char* haystack, char* needle) {
+char* stristr(char* haystack, const char* needle) {
 	int c = tolower(*needle);
 	if (c == '\0')
 		return haystack;
@@ -266,6 +275,23 @@ char* stristr(char* haystack, char* needle) {
 				if (needle[++i] == '\0')
 					return haystack;
 				if (tolower(haystack[i]) != tolower(needle[i]))
+					break;
+			}
+		}
+	}
+	return NULL;
+}
+
+wchar_t* wcsistr(wchar_t* haystack, const wchar_t* needle) {
+	wint_t c = towlower(*needle);
+	if (c == L'\0')
+		return haystack;
+	for (; *haystack; haystack++) {
+		if (towlower(*haystack) == c) {
+			for (size_t i = 0;;) {
+				if (needle[++i] == L'\0')
+					return haystack;
+				if (towlower(haystack[i]) != towlower(needle[i]))
 					break;
 			}
 		}
@@ -580,6 +606,39 @@ DWORD parent_process_id() // By Napalm @ NetCore2K (rohitab.com)
 	return 0;
 }
 
+BOOLEAN parent_has_path(char* path)
+{
+	DWORD ppid = parent_process_id();
+	HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, ppid);
+	if (process_handle == NULL) {
+		DebugOutput("parent_has_path: unable to open parent process %d", ppid);
+		return FALSE;
+	}
+
+	char process_path[MAX_PATH] = "";
+	DWORD result = GetModuleFileNameEx(process_handle, NULL, process_path, MAX_PATH);
+
+	CloseHandle(process_handle);
+
+	if (result > 0 && !stricmp(process_path, path))
+		return TRUE;
+	else
+		DebugOutput("parent_has_path: unable to get path for parent process %d", ppid);
+
+	return FALSE;
+}
+
+BOOLEAN can_open_parent()
+{
+	HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, parent_process_id());
+	if (process_handle == NULL)
+		return FALSE;
+
+	CloseHandle(process_handle);
+
+	return TRUE;
+}
+
 DWORD pid_from_process_handle(HANDLE process_handle)
 {
 	PROCESS_BASIC_INFORMATION pbi;
@@ -790,10 +849,20 @@ void add_all_dlls_to_dll_ranges(void)
 			free(ModulePath.Buffer);
 			continue;
 		}
+		// skip dlls in 'coverage_modules'
+		for (unsigned int i = 0; i < ARRAYSIZE(g_config.coverage_modules); i++) {
+			if (!g_config.coverage_modules[i])
+				break;
+			if (!wcsnicmp(mod->BaseDllName.Buffer, g_config.coverage_modules[i], wcslen(g_config.coverage_modules[i]))) {
+				free(ModulePath.Buffer);
+				goto exit;
+			}
+		}
 		free(ModulePath.Buffer);
 		add_dll_range((ULONG_PTR)mod->BaseAddress, (ULONG_PTR)mod->BaseAddress + mod->SizeOfImage);
 	}
 
+exit:
 	free(ProcessPath.Buffer);
 }
 
@@ -1556,7 +1625,7 @@ void specialname_map_init(void)
 int is_wow64_fs_redirection_disabled(void)
 {
 #ifdef _WIN64
-	return 1;
+	return 0;
 #else
 	if (is_64bit_os) {
 		__try {
@@ -1831,7 +1900,7 @@ PCHAR get_exe_basename(PCHAR ModulePath)
 	PCHAR end, start;
 	end = strrchr(ModulePath, '.');
 	start = strrchr(ModulePath, '\\');
-	if (start && end && !stricmp(end, ".exe"))
+	if (start && end)
 		return start + 1;
 	return NULL;
 }
@@ -2083,6 +2152,23 @@ BOOLEAN is_address_in_win32u(ULONG_PTR address)
 		win32u_size = get_image_size(win32u_base);
 
 	if (address >= win32u_base && address < (win32u_base + win32u_size))
+		return TRUE;
+
+	return FALSE;
+}
+
+ULONG_PTR user32_base;
+DWORD user32_size;
+
+BOOLEAN is_address_in_user32(ULONG_PTR address)
+{
+	if (!user32_base)
+		return FALSE;
+
+	if (!user32_size)
+		user32_size = get_image_size(user32_base);
+
+	if (address >= user32_base && address < (user32_base + user32_size))
 		return TRUE;
 
 	return FALSE;

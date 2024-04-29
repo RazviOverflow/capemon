@@ -20,7 +20,7 @@ extern WCHAR s_wzDllPath[MAX_PATH];
 extern CHAR s_szDllPath[MAX_PATH];
 
 #define PE_MAX_SIZE	 ((ULONG)0x20000000)
-#define PE_MIN_SIZE	 ((ULONG)0x1000)
+#define PE_MIN_SIZE	 ((ULONG)0x800)
 #define PE_MAX_SECTIONS 0xFFFF
 #define REGISTRY_VALUE_SIZE_MIN 1024
 
@@ -46,6 +46,7 @@ PCHAR TranslatePathFromDeviceToLetter(PCHAR DeviceFilePath);
 DWORD GetEntryPoint(PVOID Address);
 BOOL DumpPEsInRange(PVOID Buffer, SIZE_T Size);
 BOOL DumpRegion(PVOID Address);
+int VerifyCodeSection(PVOID ImageBase, LPCWSTR Path);
 int DumpMemoryRaw(PVOID Buffer, SIZE_T Size);
 int DumpMemory(PVOID Buffer, SIZE_T Size);
 int DumpCurrentProcessNewEP(PVOID NewEP);
@@ -54,6 +55,7 @@ int DumpCurrentProcessFixImports(PVOID NewEP);
 int DumpCurrentProcess();
 int DumpProcess(HANDLE hProcess, PVOID ImageBase, PVOID NewEP, BOOL FixImports);
 int DumpPE(PVOID Buffer);
+int ReverseScanForNonZero(PVOID Buffer, SIZE_T Size);
 int ScanForNonZero(PVOID Buffer, SIZE_T Size);
 int ScanPageForNonZero(PVOID Address);
 int ScanForPE(PVOID Buffer, SIZE_T Size, PVOID* Offset);
@@ -66,6 +68,7 @@ void DumpSectionViewsForPid(DWORD Pid);
 BOOL DumpStackRegion(void);
 
 BOOL ProcessDumped;
+unsigned int DumpCount;
 
 SYSTEM_INFO SystemInfo;
 PVOID CallingModule;
@@ -145,6 +148,7 @@ typedef struct TrackedRegion
 	BOOL						Committed;
 	BOOL						PagesDumped;
 	BOOL						CanDump;
+	BOOL						SubAllocation;
 	DWORD						EntryPoint;
 	double						Entropy;
 	SIZE_T						MinPESize;
@@ -169,3 +173,4 @@ BOOL ContextClearTrackedRegion(PCONTEXT Context, PTRACKEDREGION TrackedRegion);
 void ClearTrackedRegion(PTRACKEDREGION TrackedRegion);
 void ProcessImageBase(PTRACKEDREGION TrackedRegion);
 void ProcessTrackedRegion(PTRACKEDREGION TrackedRegion);
+BOOL TrackExecution(PVOID CIP);

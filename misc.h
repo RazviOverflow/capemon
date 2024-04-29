@@ -117,6 +117,12 @@ typedef HRESULT (WINAPI *_ProgIDFromCLSID)(
 	_Out_ LPOLESTR *lplpszProgID
 );
 
+typedef SIZE_T (WINAPI *_RtlCompareMemory)(
+    _In_ const VOID* Source1,
+    _In_ const VOID* Source2,
+    _In_ SIZE_T Length
+);
+
 _NtSetInformationProcess pNtSetInformationProcess;
 _NtMapViewOfSection pNtMapViewOfSection;
 _NtUnmapViewOfSection pNtUnmapViewOfSection;
@@ -139,6 +145,8 @@ BOOL is_directory_objattr(const OBJECT_ATTRIBUTES *obj);
 BOOL file_exists(const OBJECT_ATTRIBUTES *obj);
 void hide_module_from_peb(HMODULE module_handle);
 BOOLEAN is_suspended(DWORD pid, DWORD tid);
+BOOLEAN parent_has_path(char* path);
+BOOLEAN can_open_parent();
 
 uint32_t path_from_handle(HANDLE handle,
 	wchar_t *path, uint32_t path_buffer_len);
@@ -207,6 +215,7 @@ extern DWORD g_our_dll_size;
 BOOLEAN is_address_in_monitor(ULONG_PTR address);
 BOOLEAN is_address_in_ntdll(ULONG_PTR address);
 BOOLEAN is_address_in_win32u(ULONG_PTR address);
+BOOLEAN is_address_in_user32(ULONG_PTR address);
 BOOLEAN is_image_base_remapped(HMODULE BaseAddress);
 void num_to_string(char *buf, unsigned int buflen, unsigned int num);
 
@@ -226,7 +235,8 @@ void replace_ci_wstring_in_buf(PWCHAR buf, ULONG len, PWCHAR findstr, PWCHAR rep
 void perform_ascii_registry_fakery(PWCHAR keypath, LPVOID Data, ULONG DataLength);
 void perform_unicode_registry_fakery(PWCHAR keypath, LPVOID Data, ULONG DataLength);
 void perform_device_fakery(PVOID OutputBuffer, ULONG OutputBufferLength, ULONG IoControlCode);
-char* stristr(char* haystack, char* needle);
+char* stristr(char* haystack, const char* needle);
+wchar_t* wcsistr(wchar_t* haystack, const wchar_t* needle);
 unsigned short our_htons(unsigned short num);
 unsigned int our_htonl(unsigned int num);
 void addr_to_string(const IN_ADDR addr, char *string);

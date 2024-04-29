@@ -42,6 +42,7 @@ extern char *our_dll_path;
 extern char *our_process_name;
 extern int path_is_system(const wchar_t *path_w);
 extern int path_is_program_files(const wchar_t *path_w);
+extern BOOL PatchByte(LPVOID Address, BYTE Byte);
 extern wchar_t *our_process_path_w;
 extern int EntryPointRegister;
 extern unsigned int TraceDepthLimit, StepLimit, Type0, Type1, Type2;
@@ -209,6 +210,13 @@ void parse_config_line(char* line)
             else
                 DebugOutput("Config: ntdll write protection disabled.");
 		}
+		else if (!strcmp(key, "ntdll-remap")) {
+			g_config.ntdll_remap = (unsigned int)strtoul(value, NULL, 10);
+            if (g_config.ntdll_remap)
+                DebugOutput("Config: ntdll remap protection enabled.");
+            else
+                DebugOutput("Config: ntdll remap protection disabled.");
+		}
 		else if (!strcmp(key, "standalone")) {
 			g_config.standalone = value[0] == '1';
 		}
@@ -301,6 +309,38 @@ void parse_config_line(char* line)
 		else if (!stricmp(key, "export")) {
 			ExportAddress = strtoul(value, NULL, 0);
 			DebugOutput("Config: Export address set to 0x%x", ExportAddress);
+		}
+		else if (!stricmp(key, "patch")) {
+			p = strchr(value, ':');
+			if (p) {
+				*p = '\0';
+				char *p2 = p+1;
+				unsigned int byte = strtoul(value, NULL, 0);
+				int delta=0;
+				p = strchr(p2, '+');
+				if (p) {
+					delta = strtoul(p+1, NULL, 0);
+					DebugOutput("Config: Delta 0x%x.\n", delta);
+					*p = '\0';
+				}
+				else {
+					p = strchr(p2, '-');
+					if (p) {
+						delta = - (int)strtoul(p+1, NULL, 0);
+						DebugOutput("Config: Delta 0x%x.\n", delta);
+						*p = '\0';
+					}
+				}
+				PVOID address = (PVOID)(DWORD_PTR)strtoul(p2, NULL, 0);
+				if (address) {
+					DebugOutput("Config: patching address 0x%p with byte 0x%x", address, byte);
+					PatchByte(address, (BYTE)byte);
+				}
+				else
+					DebugOutput("Config: patch address missing invalid: %s", value);
+			}
+			else
+				DebugOutput("Config: patch byte missing");
 		}
 		else if (!stricmp(key, "bp")) {
 			unsigned int x = 0;
@@ -799,6 +839,10 @@ void parse_config_line(char* line)
 				p = p2 + 1;
 			}
 		}
+		else if (!stricmp(key, "sysbpmode")) {
+			g_config.sysbpmode = (unsigned int)strtoul(value, NULL, 10);
+			DebugOutput("Syscall breakpoint mode set to %d.\n", g_config.sysbpmode);
+		}
 		else if (!stricmp(key, "count0")) {
 			g_config.count0 = (unsigned int)(DWORD_PTR)strtoul(value, NULL, 0);
 			DebugOutput("Config: Count for breakpoint 0 set to %d\n", g_config.count0);
@@ -1052,7 +1096,7 @@ void parse_config_line(char* line)
 				DebugOutput("Config: RDTSCP nop enabled\n");
 		}
 		else if (!stricmp(key, "procdump")) {
-			g_config.procdump = value[0] == '1';
+			g_config.procdump = (unsigned int)strtoul(value, NULL, 10);
 			if (g_config.procdump)
 				DebugOutput("Process dumps enabled.\n");
 			else
@@ -1210,8 +1254,17 @@ void parse_config_line(char* line)
 			if (g_config.break_on_jit)
 				DebugOutput("Break on .NET JIT native code enabled.\n");
 		}
+		else if (!stricmp(key, "interactive")) {
+			if (!g_config.interactive)
+				g_config.interactive = value[0] == '1';
+			if (g_config.interactive == 1)
+				DebugOutput("Interactive desktop enabled.\n");
+		}
 		else if (stricmp(key, "no-iat"))
 			DebugOutput("CAPE debug - unrecognised key %s.\n", key);
+
+		// Replace the '=' we nulled for convenience
+		line[strlen(line)] = '=';
 	}
 }
 
@@ -1219,6 +1272,37 @@ int read_config(void)
 {
 	char buf[32768], config_fname[MAX_PATH];
 	FILE *fp;
+
+	// config defaults
+	g_config.debugger = 1;
+	g_config.force_sleepskip = -1;
+#ifdef _WIN64
+	g_config.hook_type = HOOK_JMP_INDIRECT;
+#else
+	g_config.hook_type = HOOK_HOTPATCH_JMP_INDIRECT;
+#endif
+	g_config.ntdll_protect = 1;
+	g_config.ntdll_remap = 1;
+	g_config.procdump = 1;
+	g_config.procmemdump = 0;
+	g_config.dropped_limit = 0;
+	g_config.injection = 1;
+	g_config.unpacker = 1;
+	g_config.api_cap = 5000;
+	g_config.api_rate_cap = 1;
+	g_config.yarascan = 1;
+	g_config.loaderlock_scans = 1;
+	g_config.amsidump = 1;
+	g_config.syscall = 1;
+
+	StepLimit = SINGLE_STEP_LIMIT;
+
+	strcpy(g_config.results, g_config.analyzer);
+
+	memset(g_config.pythonpath, 0, MAX_PATH);
+	memset(g_config.w_results, 0, sizeof(WCHAR)*MAX_PATH);
+	memset(g_config.w_analyzer, 0, sizeof(WCHAR)*MAX_PATH);
+	memset(g_config.w_pythonpath, 0, sizeof(WCHAR)*MAX_PATH);
 
 	// look for the config in monitor directory
 	memset(g_config.analyzer, 0, MAX_PATH);
@@ -1243,37 +1327,6 @@ int read_config(void)
 		if (fp == NULL)
 			return 0;
 	}
-
-	// config defaults
-	g_config.debugger = 1;
-	g_config.force_sleepskip = -1;
-#ifdef _WIN64
-	g_config.hook_type = HOOK_JMP_INDIRECT;
-	g_config.ntdll_protect = 1;
-#else
-	g_config.hook_type = HOOK_HOTPATCH_JMP_INDIRECT;
-	g_config.ntdll_protect = 1;
-#endif
-	g_config.procdump = 1;
-	g_config.procmemdump = 0;
-	g_config.dropped_limit = 0;
-	g_config.injection = 1;
-	g_config.unpacker = 1;
-	g_config.api_cap = 5000;
-	g_config.api_rate_cap = 1;
-	g_config.yarascan = 1;
-	g_config.loaderlock_scans = 1;
-	g_config.amsidump = 1;
-	g_config.syscall = 1;
-
-	StepLimit = SINGLE_STEP_LIMIT;
-
-	strcpy(g_config.results, g_config.analyzer);
-
-	memset(g_config.pythonpath, 0, MAX_PATH);
-	memset(g_config.w_results, 0, sizeof(WCHAR)*MAX_PATH);
-	memset(g_config.w_analyzer, 0, sizeof(WCHAR)*MAX_PATH);
-	memset(g_config.w_pythonpath, 0, sizeof(WCHAR)*MAX_PATH);
 
 	memset(buf, 0, sizeof(buf));
 	if (fp) {
@@ -1305,6 +1358,7 @@ int read_config(void)
 		fclose(fp);
 
 	if (g_config.tlsdump) {
+		g_config.syscall = 0;
 		g_config.debugger = 0;
 		g_config.procdump = 0;
 		g_config.procmemdump = 0;
@@ -1332,7 +1386,20 @@ int read_config(void)
 		DebugOutput("Dropped file limit defaulting to %d.\n", DROPPED_LIMIT);
 	}
 
-	if (path_is_program_files(our_process_path_w))
+	PVOID ImageBase = GetModuleHandle(NULL);
+
+	if (is_image_base_remapped(ImageBase))
+		ImageBaseRemapped = TRUE;
+
+	if (!_stricmp(our_process_name, "explorer.exe") && g_config.interactive == 1)
+	{
+		g_config.minhook = 1;
+		DebugOutput("Interactive desktop - injecting Explorer Shell\n");
+	}
+	else
+		g_config.interactive = 0;
+
+	if (!ImageBaseRemapped && path_is_program_files(our_process_path_w) && VerifyCodeSection(ImageBase, our_process_path_w) == 1)
 	{
 #ifndef _WIN64
 		if (!_stricmp(our_process_name, "firefox.exe"))
@@ -1347,9 +1414,8 @@ int read_config(void)
 			g_config.ntdll_protect = 0;
 			DebugOutput("Firefox-specific hook-set enabled.\n");
         }
-		else
 #endif
-		if (!ImageBaseRemapped && !_stricmp(our_process_name, "iexplore.exe"))
+		if (!_stricmp(our_process_name, "iexplore.exe"))
         {
 			g_config.iexplore = 1;
 			g_config.injection = 0;
@@ -1394,7 +1460,7 @@ int read_config(void)
 			DebugOutput("Microsoft Office settings enabled.\n");
         }
 	}
-	else if (path_is_system(our_process_path_w))
+	else if (!ImageBaseRemapped && path_is_system(our_process_path_w) && VerifyCodeSection(ImageBase, our_process_path_w) == 1)
 	{
 		if (!_stricmp(our_process_name, "msiexec.exe")) {
 			const char *excluded_apis[] = {
@@ -1462,12 +1528,17 @@ int read_config(void)
 			g_config.msi = 1;
 			DebugOutput("MsiExec hook set enabled\n");
 		}
-		else if (!_stricmp(our_process_name, "svchost.exe") && wcsstr(our_commandline, L"-k DcomLaunch") || wcsstr(our_commandline, L"-k netsvcs") || !_stricmp(our_process_name, "WmiPrvSE.exe") || !_stricmp(our_process_name, "services.exe")) {
+		else if (
+			(!_stricmp(our_process_name, "services.exe") && parent_has_path("C:\\Windows\\System32\\wininit.exe")) ||
+			(!_stricmp(our_process_name, "svchost.exe") && parent_has_path("C:\\Windows\\System32\\services.exe") && (wcsstr(our_commandline, L"-k DcomLaunch") || wcsstr(our_commandline, L"-k netsvcs"))) ||
+			(!_stricmp(our_process_name, "WmiPrvSE.exe") && !can_open_parent() && wcsstr(our_commandline, L"-Embedding"))
+		) {
 			g_config.procmemdump = 0;
 			g_config.yarascan = 0;
 			g_config.unpacker = 0;
 			g_config.caller_regions = 0;
 			g_config.injection = 0;
+			g_config.syscall = 0;
 			g_config.minhook = 1;
 			disable_sleep_skip();
 			DebugOutput("Services hook set enabled\n");

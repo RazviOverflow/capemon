@@ -3306,6 +3306,11 @@ HOOKDEF(NTSTATUS, WINAPI, NtContinue,
   IN BOOLEAN  RaiseAlert
 );
 
+HOOKDEF(NTSTATUS, WINAPI, NtContinueEx,
+	IN PCONTEXT ThreadContext,
+	IN PVOID ContinueArgument
+);
+
 HOOKDEF(BOOL, WINAPI, RtlDosPathNameToNtPathName_U,
 	_In_	   PCWSTR DosFileName,
 	_Out_	  PUNICODE_STRING NtFileName,
@@ -3737,4 +3742,16 @@ HOOKDEF(DWORD, WINAPI, ExpandEnvironmentStringsW,
 	_In_            LPCWSTR lpSrc,
 	_Out_opt_ LPWSTR  lpDst,
 	_In_            DWORD   nSize
+HOOKDEF(BOOL, WINAPI, EnumDisplayDevicesA,
+	_In_	LPCSTR  lpDevice,
+	_In_	DWORD   iDevNum,
+	_Out_   PDISPLAY_DEVICEA lpDisplayDevice,
+	_In_	DWORD   dwFlags
+);
+
+HOOKDEF(BOOL, WINAPI, EnumDisplayDevicesW,
+	_In_	LPCWSTR  lpDevice,
+	_In_	DWORD    iDevNum,
+	_Out_   PDISPLAY_DEVICEW lpDisplayDevice,
+	_In_	DWORD    dwFlags
 );

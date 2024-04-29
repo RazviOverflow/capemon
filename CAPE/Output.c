@@ -140,7 +140,7 @@ void CapeOutputFile(_In_ LPCTSTR lpOutputFile)
 	{
 		BufferSize = 4 * (MAX_PATH + MAX_INT_STRING_LEN + 2) + 2; //// max size string can be
 
-		MetadataString = malloc(BufferSize);
+		MetadataString = calloc(BufferSize, sizeof(BYTE));
 
 		// if our file of interest is a dll, we need to update cape module path now
 		if (base_of_dll_of_interest)
@@ -151,7 +151,7 @@ void CapeOutputFile(_In_ LPCTSTR lpOutputFile)
 				return;
 			}
 
-			CapeMetaData->ModulePath = (char*)malloc(MAX_PATH);
+			CapeMetaData->ModulePath = (char*)calloc(MAX_PATH, sizeof(BYTE));
 			WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, (LPCWSTR)g_config.file_of_interest, (int)wcslen(g_config.file_of_interest)+1, CapeMetaData->ModulePath, MAX_PATH, NULL, NULL);
 		}
 		else
@@ -176,7 +176,7 @@ void CapeOutputFile(_In_ LPCTSTR lpOutputFile)
 	{
 		BufferSize = 4 * (MAX_PATH + MAX_INT_STRING_LEN + 2) + 2; //// max size string can be
 
-		MetadataString = malloc(BufferSize);
+		MetadataString = calloc(BufferSize, sizeof(BYTE));
 
 		if (!CapeMetaData->ProcessPath)
 			CapeMetaData->ProcessPath = "Unknown path";
@@ -249,7 +249,7 @@ void DebuggerOutput(_In_ LPCTSTR lpOutputString, ...)
 
 	FullPathName = GetResultsPath("debugger");
 
-	OutputFilename = (char*)malloc(MAX_PATH);
+	OutputFilename = (char*)calloc(MAX_PATH, sizeof(BYTE));
 
 	if (OutputFilename == NULL)
 	{
@@ -313,7 +313,7 @@ void StringsOutput(_In_ LPCTSTR lpOutputString, ...)
 
 	StringsFile = GetResultsPath("CAPE");
 
-	OutputFilename = (char*)malloc(MAX_PATH);
+	OutputFilename = (char*)calloc(MAX_PATH, sizeof(BYTE));
 
 	if (OutputFilename == NULL)
 	{
@@ -349,6 +349,11 @@ void StringsOutput(_In_ LPCTSTR lpOutputString, ...)
 			*Character = 0x3F;  // '?'
 		Character++;
 	}
+
+	DebuggerOutput(StringsLine);
+
+	if (strlen(StringsLine) + 1 < MAX_PATH)
+		*Character = 0x0a;
 	WriteFile(Strings, StringsLine, (DWORD)strlen(StringsLine), (LPDWORD)&LastWriteLength, NULL);
 
 	va_end(args);

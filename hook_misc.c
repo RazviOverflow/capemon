@@ -178,6 +178,7 @@ HOOKDEF(NTSTATUS, WINAPI, LdrGetProcedureAddress,
 	if (ExportAddress && Ordinal == 1 && path_is_system(our_process_path_w) && !_stricmp(our_process_name, "rundll32.exe")) {
 		*FunctionAddress = (PVOID)((PBYTE)ModuleHandle + ExportAddress);
 		DebugOutput("LdrGetProcedureAddress: Patched export address to 0x%p", *FunctionAddress);
+		ret = 0;
 	}
 
 	LOQ_ntstatus("system", "opSiP", "ModuleName", get_basename_of_module(ModuleHandle), "ModuleHandle", ModuleHandle,
@@ -210,6 +211,7 @@ HOOKDEF(NTSTATUS, WINAPI, LdrGetProcedureAddressForCaller,
 	if (ExportAddress && Ordinal == 1 && path_is_system(our_process_path_w) && !_stricmp(our_process_name, "rundll32.exe")) {
 		*FunctionAddress = (PVOID)((PBYTE)ModuleHandle + ExportAddress);
 		DebugOutput("LdrGetProcedureAddress: Patched export address to 0x%p", *FunctionAddress);
+		ret = 0;
 	}
 
 	LOQ_ntstatus("system", "opSiP", "ModuleName", get_basename_of_module(ModuleHandle), "ModuleHandle", ModuleHandle,
@@ -1076,7 +1078,7 @@ HOOKDEF(BOOL, WINAPI, SystemTimeToTzSpecificLocalTime,
 	_In_	 LPSYSTEMTIME			lpUniversalTime,
 	_Out_	LPSYSTEMTIME			lpLocalTime
 ) {
-	BOOL ret = SystemTimeToTzSpecificLocalTime(lpTimeZone, lpUniversalTime, lpLocalTime);
+	BOOL ret = Old_SystemTimeToTzSpecificLocalTime(lpTimeZone, lpUniversalTime, lpLocalTime);
 	LOQ_bool("misc", "");
 	return ret;
 }
@@ -1085,7 +1087,7 @@ HOOKDEF(HRESULT, WINAPI, CLSIDFromProgID,
 	_In_ LPCOLESTR lpszProgID,
 	_Out_ LPCLSID lpclsid
 ) {
-	HRESULT ret = CLSIDFromProgID(lpszProgID, lpclsid);
+	HRESULT ret = Old_CLSIDFromProgID(lpszProgID, lpclsid);
 	LOQ_hresult("misc", "u", "ProgID", lpszProgID);
 	return ret;
 }
@@ -1956,5 +1958,60 @@ HOOKDEF(HANDLE, WINAPI, GetProcessHeap,
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked GetProcessHeap\n");
 	HANDLE ret = Old_GetProcessHeap();
 	LOQ_nonzero("misc", ""); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+HOOKDEF(BOOL, WINAPI, EnumDisplayDevicesA,
+	_In_	LPCSTR  lpDevice,
+	_In_	DWORD  iDevNum,
+	_Out_   PDISPLAY_DEVICEA lpDisplayDevice,
+	_In_	DWORD  dwFlags
+) {
+	const char* keywords[] = {
+		"microsoft hyper-v video",
+		"virtual",
+		"vmware",
+		"standard vga graphics adapter",
+		"microsoft basic display adapter"
+	};
+	int keywords_size = sizeof(keywords) / sizeof(keywords[0]);
+
+	const char replacement[] = "NVIDIA GeForce RTX 3060";
+
+	BOOL ret = Old_EnumDisplayDevicesA(lpDevice, iDevNum, lpDisplayDevice, dwFlags);
+	for (int i = 0; i < keywords_size; i++) {
+		if (stristr(lpDisplayDevice->DeviceString, keywords[i]) != NULL) {
+			snprintf(lpDisplayDevice->DeviceString, strlen(replacement) + 1, replacement);
+			break;
+		}
+	}
+	LOQ_bool("misc", "s", "DeviceString", lpDisplayDevice->DeviceString);
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, EnumDisplayDevicesW,
+	_In_	LPCWSTR  lpDevice,
+	_In_	DWORD  iDevNum,
+	_Out_   PDISPLAY_DEVICEW lpDisplayDevice,
+	_In_	DWORD  dwFlags
+) {
+	const wchar_t* keywords[] = {
+		L"microsoft hyper-v video",
+		L"virtual",
+		L"vmware",
+		L"standard vga graphics adapter",
+		L"microsoft basic display adapter"
+	};
+	int keywords_size = sizeof(keywords) / sizeof(keywords[0]);
+
+	const wchar_t replacement[] = L"NVIDIA GeForce RTX 3060";
+
+	BOOL ret = Old_EnumDisplayDevicesW(lpDevice, iDevNum, lpDisplayDevice, dwFlags);
+	for (int i = 0; i < keywords_size; i++) {
+		if (wcsistr(lpDisplayDevice->DeviceString, keywords[i]) != NULL) {
+			swprintf(lpDisplayDevice->DeviceString, wcslen(replacement) + 1, replacement);
+			break;
+		}
+	}
+	LOQ_bool("misc", "u", "DeviceString", lpDisplayDevice->DeviceString);
 	return ret;
 }

@@ -671,27 +671,26 @@ extern "C" int IsPeImageRaw(DWORD_PTR Buffer)
 				peFile->listPeSection[SectionIndex].sectionHeader.Misc.VirtualSize
 			);
 #endif
-			if (peFile->listPeSection[SectionIndex].sectionHeader.PointerToRawData != peFile->listPeSection[SectionIndex].sectionHeader.VirtualAddress)
+			if (!peFile->listPeSection[SectionIndex].sectionHeader.PointerToRawData && peFile->listPeSection[SectionIndex].sectionHeader.VirtualAddress)
 			{
-				int SectionBoundary = LooksLikeSectionBoundary((DWORD_PTR)Buffer + peFile->listPeSection[SectionIndex].sectionHeader.PointerToRawData);
-				if (SectionBoundary == -1)
-				{
 #ifdef DEBUG_COMMENTS
-					DebugOutput("IsPeImageRaw: Error reading section boundary.\n");
+					DebugOutput("IsPeImageRaw: Missing PointerToRawData for section %d.\n", SectionIndex+1);
 #endif
 					delete peFile;
 					return 0;
-				}
-				else if (SectionBoundary == 1)
-				{
+			}
+			else if (peFile->listPeSection[SectionIndex].sectionHeader.PointerToRawData && !peFile->listPeSection[SectionIndex].sectionHeader.VirtualAddress)
+			{
 #ifdef DEBUG_COMMENTS
-					DebugOutput("IsPeImageRaw: Found what looks like a 'raw' section boundary - image looks raw.\n");
+					DebugOutput("IsPeImageRaw: Missing VirtualAddress for section %d.\n", SectionIndex+1);
 #endif
 					delete peFile;
 					return 1;
-				}
+			}
 
-				SectionBoundary = LooksLikeSectionBoundary((DWORD_PTR)Buffer + peFile->listPeSection[SectionIndex].sectionHeader.VirtualAddress);
+			if (peFile->listPeSection[SectionIndex].sectionHeader.PointerToRawData != peFile->listPeSection[SectionIndex].sectionHeader.VirtualAddress)
+			{
+				int SectionBoundary = LooksLikeSectionBoundary((DWORD_PTR)Buffer + peFile->listPeSection[SectionIndex].sectionHeader.VirtualAddress);
 				if (SectionBoundary == -1)
 				{
 #ifdef DEBUG_COMMENTS
@@ -707,6 +706,24 @@ extern "C" int IsPeImageRaw(DWORD_PTR Buffer)
 #endif
 					delete peFile;
 					return 0;
+				}
+
+				SectionBoundary = LooksLikeSectionBoundary((DWORD_PTR)Buffer + peFile->listPeSection[SectionIndex].sectionHeader.PointerToRawData);
+				if (SectionBoundary == -1)
+				{
+#ifdef DEBUG_COMMENTS
+					DebugOutput("IsPeImageRaw: Error reading section boundary.\n");
+#endif
+					delete peFile;
+					return 0;
+				}
+				else if (SectionBoundary == 1)
+				{
+#ifdef DEBUG_COMMENTS
+					DebugOutput("IsPeImageRaw: Found what looks like a 'raw' section boundary - image looks raw.\n");
+#endif
+					delete peFile;
+					return 1;
 				}
 			}
 		}

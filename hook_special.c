@@ -37,12 +37,11 @@ extern void set_hooks();
 extern void notify_successful_load(void);
 extern BOOL ProcessDumped;
 
-PVOID LastDllUnload;
-
 static int wmi_sent = 0;
 static int bits_sent = 0;
 static int tasksched_sent = 0;
 static int interop_sent = 0;
+static int shell_sent = 0;
 
 HOOKDEF_NOTAIL(WINAPI, LdrLoadDll,
 	__in_opt	PWCHAR PathToFile,
@@ -72,13 +71,6 @@ HOOKDEF_NOTAIL(WINAPI, LdrLoadDll,
 			free(absolutename);
 		}
 
-		if (!wcsncmp(library.Buffer, L"\\??\\", 4) || library.Buffer[1] == L':')
-			LOQ_ntstatus("system", "HFP", "Flags", Flags, "FileName", library.Buffer,
-			"BaseAddress", ModuleHandle);
-		else
-			LOQ_ntstatus("system", "HoP", "Flags", Flags, "FileName", &library,
-			"BaseAddress", ModuleHandle);
-
 		if (library.Buffer[1] == L':' && (!wcsnicmp(library.Buffer, L"c:\\windows\\system32\\", 20) ||
 										  !wcsnicmp(library.Buffer, L"c:\\windows\\syswow64\\", 20) ||
 										  !wcsnicmp(library.Buffer, L"c:\\windows\\sysnative\\", 21))) {
@@ -101,6 +93,15 @@ HOOKDEF_NOTAIL(WINAPI, LdrLoadDll,
 			g_config.tlsdump = 0;
 			if (read_config()) {
 				log_init(g_config.debug || g_config.standalone);
+				set_hooks();
+				notify_successful_load();
+			}
+		}
+		if (g_config.interactive) {
+			// explorer injected by malware - switch to 'normal' mode
+			g_config.interactive = 2;
+			g_config.minhook = 0;
+			if (read_config()) {
 				set_hooks();
 				notify_successful_load();
 			}
@@ -129,6 +130,13 @@ HOOKDEF_ALT(NTSTATUS, WINAPI, LdrLoadDll,
 	ret = Old_LdrLoadDll(PathToFile, Flags, ModuleFileName, ModuleHandle);
 	memcpy(hook_info(), &saved_hookinfo, sizeof(saved_hookinfo));
 
+	if (!wcsncmp(library.Buffer, L"\\??\\", 4) || library.Buffer[1] == L':')
+		LOQ_ntstatus("system", "HFP", "Flags", Flags, "FileName", library.Buffer,
+		"BaseAddress", ModuleHandle);
+	else
+		LOQ_ntstatus("system", "HoP", "Flags", Flags, "FileName", &library,
+		"BaseAddress", ModuleHandle);
+
 	disable_tail_call_optimization();
 	return ret;
 }
@@ -140,18 +148,20 @@ HOOKDEF_NOTAIL(WINAPI, LdrUnloadDll,
 ) {
 	if (DllImageBase && DllImageBase == (PVOID)base_of_dll_of_interest && g_config.procdump && !ProcessDumped)
 	{
-		DebugOutput("Target DLL unloading from 0x%p, dumping\n", DllImageBase);
-		CapeMetaData->DumpType = PROCDUMP;
-		if (g_config.import_reconstruction)
-			ProcessDumped = DumpImageInCurrentProcessFixImports(DllImageBase, 0);
+		if (VerifyCodeSection(DllImageBase, g_config.file_of_interest) < 1)
+		{
+			DebugOutput("Target DLL unloading from 0x%p: code modification detected, dumping.\n", DllImageBase);
+			CapeMetaData->DumpType = PROCDUMP;
+			if (g_config.import_reconstruction)
+				ProcessDumped = DumpImageInCurrentProcessFixImports(DllImageBase, 0);
+			else
+				ProcessDumped = DumpImageInCurrentProcess(DllImageBase);
+		}
 		else
-			ProcessDumped = DumpImageInCurrentProcess(DllImageBase);
-	}
-
-	if (DllImageBase && DllImageBase != LastDllUnload)
-	{
-		DebugOutput("DLL unloaded from 0x%p.\n", DllImageBase);
-		LastDllUnload = DllImageBase;
+		{
+			DebugOutput("Target DLL unloading from 0x%p: Skipping dump as code is identical on disk.", DllImageBase);
+			ProcessDumped = TRUE;
+		}
 	}
 
 	return 0;
@@ -249,43 +259,39 @@ static _ProgIDFromCLSID pProgIDFromCLSID;
 /* 0002DF01-0000-0000-C000-000000000046 */ DEFINE_OLEGUID(CLSID_InternetExplorer, 0x0002DF01, 0, 0);
 /* 000C101C-0000-0000-C000-000000000046 */ DEFINE_OLEGUID(CLSID_MsiInstallServer, 0x000C101C, 0, 0);
 /* 00000323-0000-0000-C000-000000000046 */ DEFINE_OLEGUID(CLSID_StdGlobalInterfaceTable, 0x00000323, 0, 0);
+/* 0000032a-0000-0000-C000-000000000046 */ DEFINE_OLEGUID(CLSID_RpcHelper, 0x0000032a, 0, 0);
+/* 00000339-0000-0000-C000-000000000046 */ DEFINE_OLEGUID(CLSID_ActivationProperties, 0x00000339, 0, 0);
+/* 00000346-0000-0000-C000-000000000046 */ DEFINE_OLEGUID(CLSID_COMCatalog, 0x00000346, 0, 0);
 /* 91493441-5A91-11CF-8700-00AA0060263B */ DEFINE_GUID(CLSID_PowerPointObjectLibrary, 0x91493441, 0x5A91, 0x11CF, 0x87, 0x00, 0x00, 0xAA, 0x00, 0x60, 0x26, 0x3B);
 /* 75DFF2B7-6936-4C06-A8BB-676A7B00B24B */ DEFINE_GUID(CLSID_SeparateMultipleProcessExplorerHost, 0x75DFF2B7, 0x6936, 0x4C06, 0xA8, 0xBB, 0x67, 0x6A, 0x7B, 0x00, 0xB2, 0x4B);
 /* C08AFD90-F2A1-11D1-8455-00A0C91F3880 */ DEFINE_GUID(CLSID_ShellBrowserWindow, 0xC08AFD90, 0xF2A1, 0x11D1, 0x84, 0x55, 0x00, 0xA0, 0xC9, 0x1F, 0x38, 0x80);
+/* 9BA05972-F6A8-11CF-A442-00A0C90A8F39 */ DEFINE_GUID(CLSID_ShellWindows, 0x9BA05972, 0xF6A8, 0x11CF, 0xA4, 0x42, 0x00, 0xA0, 0xC9, 0x0A, 0x8F, 0x39);
 
 void inspect_clsid(REFCLSID rclsid) {
-	if (IsEqualCLSID(rclsid, &CLSID_BITSControlClass_v1_0) || IsEqualCLSID(rclsid, &CLSID_BITS_Unknown) ||
-		IsEqualCLSID(rclsid, &CLSID_BITS_LegacyControlClass)) {
-		if (!bits_sent) {
-			bits_sent = 1;
-			pipe("BITS:");
-		}
+	if (!bits_sent && IsEqualCLSID(rclsid, &CLSID_BITSControlClass_v1_0) || IsEqualCLSID(rclsid, &CLSID_BITS_Unknown) || IsEqualCLSID(rclsid, &CLSID_BITS_LegacyControlClass)) {
+		bits_sent = 1;
+		pipe("BITS:");
 	}
-	if (IsEqualCLSID(rclsid, &CLSID_TaskScheduler) || IsEqualCLSID(rclsid, &CLSID_TaskScheduler_Unknown) ||
-		IsEqualCLSID(rclsid, &CLSID_SchedulingAgentServiceClass)) {
-		if (!tasksched_sent) {
-			tasksched_sent = 1;
-			pipe("TASKSCHED:");
-		}
+	if (!tasksched_sent && IsEqualCLSID(rclsid, &CLSID_TaskScheduler) || IsEqualCLSID(rclsid, &CLSID_TaskScheduler_Unknown) || IsEqualCLSID(rclsid, &CLSID_SchedulingAgentServiceClass)) {
+		tasksched_sent = 1;
+		pipe("TASKSCHED:");
 	}
-#ifndef _WIN64
-	if (IsEqualCLSID(rclsid, &CLSID_WbemLocator) || IsEqualCLSID(rclsid, &CLSID_WbemClassObject) ||
-		IsEqualCLSID(rclsid, &CLSID_winmgmts) || IsEqualCLSID(rclsid, &CLSID_WbemDefaultPathParser)) {
-		if (!wmi_sent) {
-			wmi_sent = 1;
-			pipe("WMI:");
-		}
+	if (!wmi_sent && IsEqualCLSID(rclsid, &CLSID_WbemLocator) || IsEqualCLSID(rclsid, &CLSID_WbemClassObject) || IsEqualCLSID(rclsid, &CLSID_winmgmts)
+		|| IsEqualCLSID(rclsid, &CLSID_WbemDefaultPathParser)) {
+		wmi_sent = 1;
+		pipe("WMI:");
 	}
-	if (IsEqualCLSID(rclsid, &CLSID_WordObjectLibrary) || IsEqualCLSID(rclsid, &CLSID_ExcelObjectLibrary) || IsEqualCLSID(rclsid, &CLSID_Unknown246FF) ||
-		IsEqualCLSID(rclsid, &CLSID_OutlookObjectLibrary) || IsEqualCLSID(rclsid, &CLSID_Equation2) || IsEqualCLSID(rclsid, &CLSID_InternetExplorer) ||
-		IsEqualCLSID(rclsid, &CLSID_MsiInstallServer) || IsEqualCLSID(rclsid, &CLSID_StdGlobalInterfaceTable) || IsEqualCLSID(rclsid, &CLSID_PowerPointObjectLibrary) ||
-		IsEqualCLSID(rclsid, &CLSID_SeparateMultipleProcessExplorerHost) || IsEqualCLSID(rclsid, &CLSID_ShellBrowserWindow)) {
-		if (!interop_sent) {
-			interop_sent = 1;
-			pipe("INTEROP:");
-		}
+	if (!interop_sent && IsEqualCLSID(rclsid, &CLSID_WordObjectLibrary) || IsEqualCLSID(rclsid, &CLSID_ExcelObjectLibrary) || IsEqualCLSID(rclsid, &CLSID_Unknown246FF)
+		|| IsEqualCLSID(rclsid, &CLSID_OutlookObjectLibrary) || IsEqualCLSID(rclsid, &CLSID_Equation2) || IsEqualCLSID(rclsid, &CLSID_InternetExplorer)
+		|| IsEqualCLSID(rclsid, &CLSID_MsiInstallServer) || IsEqualCLSID(rclsid, &CLSID_StdGlobalInterfaceTable) || IsEqualCLSID(rclsid, &CLSID_PowerPointObjectLibrary)
+		|| IsEqualCLSID(rclsid, &CLSID_SeparateMultipleProcessExplorerHost) || IsEqualCLSID(rclsid, &CLSID_ShellBrowserWindow)) {
+		interop_sent = 1;
+		pipe("INTEROP:");
 	}
-#endif
+	if (!shell_sent && IsEqualCLSID(rclsid, &CLSID_ShellWindows)) {
+		shell_sent = 1;
+		pipe("SHELL:");
+	}
 }
 
 HOOKDEF(HRESULT, WINAPI, CoCreateInstance,

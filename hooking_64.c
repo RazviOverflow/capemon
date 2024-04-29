@@ -314,7 +314,7 @@ void add_unwind_info(hook_t *h)
 		unwindinfo->SizeOfProlog = 0x7d;
 	}
 	else {
-		unwindinfo->SizeOfProlog = 50;
+		unwindinfo->SizeOfProlog = 57;
 	}
 	unwindinfo->FrameRegister = 0;
 	unwindinfo->FrameOffset = 0;
@@ -375,7 +375,7 @@ void add_unwind_info(hook_t *h)
 	}
 	else {
 		unwindinfo->UnwindCode[i].UnwindOp = UWOP_ALLOC_SMALL;
-		unwindinfo->UnwindCode[i].CodeOffset = 44;
+		unwindinfo->UnwindCode[i].CodeOffset = 51;
 		unwindinfo->UnwindCode[i].OpInfo = 3; // (3 + 1) * 8 = 0x20
 		i++;
 
@@ -423,6 +423,10 @@ static void hook_create_pre_tramp(hook_t *h)
 	unsigned int off;
 
 	unsigned char pre_tramp1[] = {
+		// test sp, 0xf - if stack unaligned...
+		0x66, 0xf7, 0xc4, 0x0f, 0x00,
+		// jz 81 - ... bail
+		0x74, 0x51,
 		// pushfq
 		0x9c,
 		// cld
@@ -968,9 +972,9 @@ int hook_api(hook_t *h, int type)
 				char *module_name = convert_address_to_dll_name_and_offset((ULONG_PTR)addr, &offset);
 				DebugOutput("hook_api: Warning - %s export address 0x%p differs from GetProcAddress -> 0x%p (%s::0x%x)\n", h->funcname, exportaddr, addr, module_name, offset);
 			}
-			else if (exportaddr && !addr) {
+			else if (exportaddr && !addr && !wcscmp(h->library, L"clrjit")) {
 				addr = exportaddr;
-				DebugOutput("hook_api: %s address 0x%p obtained via GetExportAddress\n", h->funcname, addr);
+				DebugOutput("hook_api: clrjit::%s export address 0x%p obtained via GetExportAddress\n", h->funcname, addr);
 			}
 		}
 
@@ -1023,7 +1027,6 @@ int hook_api(hook_t *h, int type)
 
 	addr = handle_stub(h, addr);
 
-	/*
 	if (!wcscmp(h->library, L"ntdll") && !memcmp(addr, "\x4c\x8b\xd1\xb8", 4)) {
 		// hooking a native API, leave in the mov eax, <syscall nr> instruction
 		// as some malware depends on this for direct syscalls
@@ -1031,7 +1034,6 @@ int hook_api(hook_t *h, int type)
 		// at all
 		type = HOOK_NATIVE_JMP_INDIRECT;
 	}
-	*/
 
 	// check if this is a valid hook type
 	if (type < 0 && type >= ARRAYSIZE(hook_types)) {

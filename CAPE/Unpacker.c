@@ -55,9 +55,9 @@ extern int DumpMemory(PVOID Buffer, SIZE_T Size);
 extern int ScanForPE(PVOID Buffer, SIZE_T Size, PVOID* Offset);
 extern int ScanPageForNonZero(PVOID Address);
 
-PTRACKEDREGION CurrentRegion;
+static PTRACKEDREGION CurrentRegion;
+static DWORD CurrentThread;
 static DWORD_PTR LastEIP, CurrentEIP;
-
 //**************************************************************************************
 PIMAGE_NT_HEADERS GetNtHeaders(PVOID BaseAddress)
 //**************************************************************************************
@@ -104,7 +104,7 @@ void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationTyp
 		return;
 
 #ifdef DEBUG_COMMENTS
-	DebugOutput("Allocation: 0x%p - 0x%p, size: 0x%x, protection: 0x%x.\n", BaseAddress, (PUCHAR)BaseAddress + RegionSize, RegionSize, Protect);
+	DebugOutput("Allocation: 0x%p - 0x%p, size: 0x%x, protection: 0x%x, type 0x%x\n", BaseAddress, (PUCHAR)BaseAddress + RegionSize, RegionSize, Protect, AllocationType);
 #endif
 	hook_disable();
 
@@ -115,9 +115,7 @@ void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationTyp
 	if (TrackedRegion && !TrackedRegion->Committed && (AllocationType & MEM_COMMIT))
 	{
 		DebugOutput("AllocationHandler: Previously reserved region at 0x%p, committing at: 0x%p.\n", TrackedRegion->AllocationBase, BaseAddress);
-
-		if (TrackedRegion->AllocationBase != BaseAddress)
-			TrackedRegion->Address = BaseAddress;
+		TrackedRegion->SubAllocation = TRUE;
 	}
 	else if (TrackedRegion && (AllocationType & MEM_RESERVE))
 	{
@@ -139,6 +137,8 @@ void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationTyp
 		else
 			DebugOutput("AllocationHandler: Adding allocation to tracked region list: 0x%p, size: 0x%x.\n", BaseAddress, RegionSize);
 		TrackedRegion = AddTrackedRegion(BaseAddress, Protect);
+		if (!(AllocationType & MEM_RESERVE))
+			TrackedRegion->SubAllocation = TRUE;
 	}
 
 	if (!TrackedRegion)
@@ -148,7 +148,10 @@ void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationTyp
 		return;
 	}
 
-	if (CurrentRegion && CurrentRegion != TrackedRegion)
+	if (TrackedRegion->AllocationBase != BaseAddress)
+		TrackedRegion->Address = BaseAddress;
+
+	if (CurrentRegion && CurrentRegion != TrackedRegion && CurrentThread && CurrentThread == GetCurrentThreadId())
 	{
 		if (TraceRunning)
 			DebuggerOutput("AllocationHandler: Processing previous tracked region at: 0x%p.\n", CurrentRegion->AllocationBase);
@@ -158,6 +161,7 @@ void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationTyp
 	}
 
 	CurrentRegion = TrackedRegion;
+	CurrentThread = GetCurrentThreadId();
 
 	if (AllocationType & MEM_COMMIT)
 	{
@@ -178,7 +182,7 @@ void AllocationHandler(PVOID BaseAddress, SIZE_T RegionSize, ULONG AllocationTyp
 	else
 	{   // Allocation not committed, so we can't set breakpoints yet
 		TrackedRegion->Committed = FALSE;
-		DebugOutput("AllocationHandler: Memory reserved but not committed at 0x%p.\n", BaseAddress);
+		DebugOutput("AllocationHandler: Memory region (size 0x%x) reserved but not committed at 0x%p.\n", RegionSize, BaseAddress);
 	}
 
 	hook_enable();
@@ -200,6 +204,9 @@ void ProtectionHandler(PVOID Address, ULONG Protect, PULONG OldProtect)
 	}
 
 	if (!(Protect & EXECUTABLE_FLAGS))
+		return;
+
+	if (is_in_dll_range((ULONG_PTR)Address))
 		return;
 
 	hook_disable();
@@ -228,7 +235,10 @@ void ProtectionHandler(PVOID Address, ULONG Protect, PULONG OldProtect)
 		return;
 	}
 
-	if (CurrentRegion && CurrentRegion != TrackedRegion)
+	if (TrackedRegion->AllocationBase != Address)
+		TrackedRegion->Address = Address;
+
+	if (CurrentRegion && CurrentRegion != TrackedRegion && CurrentThread && CurrentThread == GetCurrentThreadId())
 	{
 		if (TraceRunning)
 			DebuggerOutput("ProtectionHandler: Processing previous tracked region at: 0x%p.\n", CurrentRegion->AllocationBase);
@@ -238,6 +248,7 @@ void ProtectionHandler(PVOID Address, ULONG Protect, PULONG OldProtect)
 	}
 
 	CurrentRegion = TrackedRegion;
+	CurrentThread = GetCurrentThreadId();
 
 	if (!VirtualQuery(Address, &TrackedRegion->MemInfo, sizeof(MEMORY_BASIC_INFORMATION)))
 	{
@@ -270,8 +281,6 @@ void ProtectionHandler(PVOID Address, ULONG Protect, PULONG OldProtect)
 	if (!TrackedRegion->PagesDumped && (NewRegion || *OldProtect & WRITABLE_FLAGS) && ScanForNonZero(Address, GetAccessibleSize(Address)))
 	{
 		DebugOutput("ProtectionHandler: New code region detected at 0x%p.\n", TrackedRegion->AllocationBase);
-
-		TrackedRegion->Address = Address;
 
 		ProcessTrackedRegion(TrackedRegion);
 
@@ -330,7 +339,7 @@ void FreeHandler(PVOID BaseAddress)
 
 	hook_disable();
 
-	if (TrackedRegion->Committed == TRUE && TrackedRegion->MemInfo.Protect & EXECUTABLE_FLAGS && ScanForNonZero(TrackedRegion->AllocationBase, GetAccessibleSize(TrackedRegion->AllocationBase)) && !TrackedRegion->PagesDumped)
+	if (!TrackedRegion->PagesDumped && TrackedRegion->Committed == TRUE && TrackedRegion->MemInfo.Protect & EXECUTABLE_FLAGS && ScanForNonZero(TrackedRegion->AllocationBase, GetAccessibleSize(TrackedRegion->AllocationBase)))
 	{
 		ProcessTrackedRegion(TrackedRegion);
 

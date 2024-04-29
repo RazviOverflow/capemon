@@ -157,7 +157,7 @@ static void log_raw_direct(const char *buf, size_t length) {
 
 	while (copiedlen != length) {
 		EnterCriticalSection(&g_writing_log_buffer_mutex);
-		copylen = min(length - copiedlen, (size_t)(BUFFERSIZE - g_idx));
+		copylen = min((unsigned int)(length - copiedlen), (unsigned int)(BUFFERSIZE - g_idx));
 		memcpy(&g_buffer[g_idx], &buf[copiedlen], copylen);
 		g_idx += (int)copylen;
 		copiedlen += copylen;
@@ -316,7 +316,7 @@ static void log_wargv(int argc, const wchar_t ** argv) {
 }
 
 static void log_buffer(const char *buf, size_t length) {
-	size_t trunclength = min(length, buffer_log_max);
+	size_t trunclength = min((unsigned int)length, (unsigned int)buffer_log_max);
 
 	if (buf == NULL) {
 		trunclength = 0;
@@ -326,7 +326,7 @@ static void log_buffer(const char *buf, size_t length) {
 }
 
 static void log_large_buffer(const char *buf, size_t length) {
-	size_t trunclength = min(length, large_buffer_log_max);
+	size_t trunclength = min((unsigned int)length, (unsigned int)large_buffer_log_max);
 
 	if (buf == NULL) {
 		trunclength = 0;
@@ -1131,17 +1131,32 @@ void log_breakpoint(const char *subcategory, const char *msg)
 
 void log_syscall(PUNICODE_STRING module, const char *function, PVOID retaddr, DWORD retval)
 {
-	if (module)
-		loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, retval==0, retval, "iosp",
-			"ThreadIdentifier", GetCurrentThreadId(),
-			"Module", module,
-			"Function", function,
-			"Return Address", retaddr);
+	if (function && strlen(function))
+	{
+		if (module)
+			loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, retval==0, retval, "iosp",
+				"ThreadIdentifier", GetCurrentThreadId(),
+				"Module", module,
+				"Function", function,
+				"Return Address", retaddr);
+		else
+			loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, retval==0, retval, "isp",
+				"ThreadIdentifier", GetCurrentThreadId(),
+				"Function", function,
+				"Return Address", retaddr);
+	}
 	else
-		loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, retval==0, retval, "isp",
-			"ThreadIdentifier", GetCurrentThreadId(),
-			"Function", function,
-			"Return Address", retaddr);
+	{
+		if (module)
+			loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, retval==0, retval, "iop",
+				"ThreadIdentifier", GetCurrentThreadId(),
+				"Module", module,
+				"Return Address", retaddr);
+		else
+			loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, retval==0, retval, "ip",
+				"ThreadIdentifier", GetCurrentThreadId(),
+				"Return Address", retaddr);
+	}
 }
 
 void log_procname_anomaly(PUNICODE_STRING InitialName, PUNICODE_STRING InitialPath, PUNICODE_STRING CurrentName, PUNICODE_STRING CurrentPath)
