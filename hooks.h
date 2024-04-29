@@ -3763,3 +3763,9 @@ HOOKDEF(BOOL, WINAPI, EnumProcesses,
 	_In_ DWORD cb,
 	_Out_ DWORD* pBytesReturned
 );
+
+HOOKDEF(BOOL, WINAPI, K32EnumProcesses,
+	_Out_ DWORD* pProcessIds,
+	_In_ DWORD cb,
+	_Out_ DWORD* pBytesReturned
+);

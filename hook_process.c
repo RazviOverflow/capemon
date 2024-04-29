@@ -1486,3 +1486,14 @@ HOOKDEF(BOOL, WINAPI, EnumProcesses,
 	LOQ_bool("process", "pip", "Proccess IDs", pProcessIds, "cb", cb, "Bytes Returned", pBytesReturned); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
+
+HOOKDEF(BOOL, WINAPI, K32EnumProcesses,
+	_Out_ DWORD* pProcessIds,
+	_In_ DWORD cb,
+	_Out_ DWORD* pBytesReturned
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked K32EnumProcesses\n");
+	BOOL ret = Old_K32EnumProcesses(pProcessIds, cb, pBytesReturned);
+	LOQ_bool("process", "pip", "Proccess IDs", pProcessIds, "cb", cb, "Bytes Returned", pBytesReturned); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
