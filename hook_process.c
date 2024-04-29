@@ -1475,3 +1475,14 @@ HOOKDEF(BOOL, WINAPI, UpdateProcThreadAttribute,
 	LOQ_zero("process", "lL", "Attribute", Attribute, "Value", lpValue);
 	return ret;
 }
+
+HOOKDEF(BOOL, WINAPI, EnumProcesses,
+	_Out_ DWORD* pProcessIds,
+	_In_ DWORD cb,
+	_Out_ DWORD* pBytesReturned
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked EnumProcesses\n");
+	BOOL ret = Old_EnumProcesses(pProcessIds, cb, pBytesReturned);
+	LOQ_bool("process", "pip", "Proccess IDs", pProcessIds, "cb", cb, "Bytes Returned", pBytesReturned); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}

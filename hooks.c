@@ -670,6 +670,7 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, GetEnvironmentStrings),
 	HOOK(kernel32, ExpandEnvironmentStringsA),
 	HOOK(kernel32, ExpandEnvironmentStringsW),
+	HOOK(kernel32, EnumProcesses),
 };
 
 // This hook set is intended to include only hooks which are necessary
