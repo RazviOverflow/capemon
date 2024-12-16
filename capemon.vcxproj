@@ -251,6 +251,7 @@
     <ClCompile Include="hook_clr.c" />
     <ClCompile Include="hook_crypto.c" />
     <ClCompile Include="hook_file.c" />
+    <ClCompile Include="hook_lang.c" />
     <ClCompile Include="hook_misc.c" />
     <ClCompile Include="hook_network.c" />
     <ClCompile Include="hook_process.c" />
@@ -263,6 +264,7 @@
     <ClCompile Include="hook_sync.c" />
     <ClCompile Include="hook_thread.c" />
     <ClCompile Include="hook_tls.c" />
+    <ClCompile Include="hook_vbscript.c" />
     <ClCompile Include="hook_window.c" />
     <ClCompile Include="ignore.c" />
     <ClCompile Include="log.c" />

@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "log.h"
 #include "pipe.h"
 #include "config.h"
+#include "CAPE\CAPE.h"
 
 extern char *our_process_name;
 extern int path_is_system(const wchar_t *path_w);
@@ -832,8 +833,8 @@ void add_all_dlls_to_dll_ranges(void)
 	pListEntry = pHeadEntry->Flink;
 	mod = CONTAINING_RECORD(pListEntry, LDR_DATA_TABLE_ENTRY, InLoadOrderModuleList);
 	ProcessPath.MaximumLength = ProcessPath.Length = mod->FullDllName.Length - mod->BaseDllName.Length;
-	ProcessPath.Buffer = calloc(ProcessPath.Length/sizeof(WCHAR) + 1, sizeof(WCHAR));
-	memcpy(ProcessPath.Buffer, mod->FullDllName.Buffer, ProcessPath.Length);
+	ProcessPath.Buffer = calloc(ProcessPath.Length + 1, sizeof(WCHAR));
+	memcpy(ProcessPath.Buffer, mod->FullDllName.Buffer, ProcessPath.Length * sizeof(WCHAR));
 
 	// skip the base image
 	for (pListEntry = pHeadEntry->Flink->Flink;
@@ -842,8 +843,8 @@ void add_all_dlls_to_dll_ranges(void)
 	{
 		mod = CONTAINING_RECORD(pListEntry, LDR_DATA_TABLE_ENTRY, InLoadOrderModuleList);
 		ModulePath.MaximumLength = ModulePath.Length = mod->FullDllName.Length - mod->BaseDllName.Length;
-		ModulePath.Buffer = calloc(ModulePath.Length/sizeof(WCHAR) + 1, sizeof(WCHAR));
-		memcpy(ModulePath.Buffer, mod->FullDllName.Buffer, ModulePath.Length);
+		ModulePath.Buffer = calloc(ModulePath.Length + 1, sizeof(WCHAR));
+		memcpy(ModulePath.Buffer, mod->FullDllName.Buffer, ModulePath.Length * sizeof(WCHAR));
 		// skip dlls in same directory as exe
 		if (!path_is_system(ModulePath.Buffer) && pRtlEqualUnicodeString(&ProcessPath, &ModulePath, FALSE) || (ULONG_PTR)mod->BaseAddress == base_of_dll_of_interest) {
 			free(ModulePath.Buffer);
@@ -1922,6 +1923,35 @@ PWCHAR get_dll_basename(PWCHAR ModulePath)
 	return dllname;
 }
 
+void disassemble(PVOID address, char* buffer, size_t bufferSize)
+{
+	_DecodeType DecodeType;
+	_DecodeResult Result;
+	_OffsetType Offset = 0;
+	_DecodedInst DecodedInstruction;
+	unsigned int DecodedInstructionsCount = 0;
+
+#ifdef _WIN64
+	DecodeType = Decode64Bits;
+#else
+	DecodeType = Decode32Bits;
+#endif
+
+	if (!address || !IsAddressAccessible(address))
+		return;
+
+	Result = distorm_decode(Offset, (const unsigned char*)address, 0x10, DecodeType, &DecodedInstruction, 1, &DecodedInstructionsCount);
+
+	if (!DecodedInstruction.size)
+		return;
+
+#ifdef _WIN64
+	snprintf(buffer, bufferSize, "%-24s %-6s%-4s%-30s", (char*)_strupr(DecodedInstruction.instructionHex.p), DecodedInstruction.mnemonic.p, DecodedInstruction.operands.length != 0 ? " " : "", DecodedInstruction.operands.p);
+#else
+	snprintf(buffer, bufferSize, "%-24s %-6s%-4s%-30s", (char*)_strupr(DecodedInstruction.instructionHex.p), DecodedInstruction.mnemonic.p, DecodedInstruction.operands.length != 0 ? " " : "", DecodedInstruction.operands.p);
+#endif
+}
+
 ULONG_PTR get_olescript_parsescripttext_addr(HMODULE mod)
 {
 	PUCHAR start, end;
@@ -2020,6 +2050,61 @@ next_iter:
 		}
 	}
 #endif
+
+	return 0;
+}
+
+ULONG_PTR get_vbscript_addr(HMODULE mod, const char * function)
+{
+	unsigned int widelen = 0;
+	wchar_t *widefunc = NULL;
+	PUCHAR start, end;
+	wchar_t *u;
+	const char *c;
+
+	if (!function)
+		return 0;
+
+	// function names are prefixed with 'Vbs' to match vbscript.dll symbols
+	if (function[0] == 'V' && function[1] == 'b' && function[2] == 's')
+		function += 3;
+
+	widelen = (unsigned int)((strlen(function) + 1) * sizeof(wchar_t));
+	widefunc = calloc(1, widelen);
+	if (!widefunc)
+		return 0;
+
+	for (u = widefunc, c = function; *c; c++, u++)
+		*u = (wchar_t)(unsigned short)*c;
+
+	if (!get_section_bounds(mod, ".text", &start, &end))
+		return 0;
+
+	for (PUCHAR p = start; p < end - 10; p++) {
+#ifdef _WIN64
+		if (p[0] == 0x4c && p[1] == 0x8d && p[2] == 0x1d && p[26] == 0x48 && p[27] == 0x8d && p[28] == 0x3d ) {
+			wchar_t* name = *(wchar_t**)(&p[7] + *(unsigned int*)&p[3]);
+			__try {
+				if (name && !wcsicmp(widefunc, name)) {
+					free(widefunc);
+					return *((ULONG_PTR*)(&p[33] + *(unsigned int*)&p[29]) + 1);
+#else
+		if (p[0] == 0xc7 && p[1] == 0x45 && p[2] == 0x08 && p[7] == 0xc7 && p[8] == 0x45 && p[9] == 0xfc ) {
+			wchar_t** name = *(wchar_t***)&p[3];
+			__try {
+				if (*name && !wcsicmp(widefunc, *name)) {
+					free(widefunc);
+					return *((ULONG_PTR*)*(ULONG_PTR*)&p[10] + 1);
+#endif
+				}
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER) {
+				continue;
+			}
+		}
+	}
+
+	free(widefunc);
 
 	return 0;
 }

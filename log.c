@@ -1066,7 +1066,7 @@ void log_environ()
 		sysvolguid = strdup("");
 
 
-	loq(LOG_ID_ENVIRON, "__notification__", "__environ__", 1, 0, "ssissssssiisssph",
+	loq(LOG_ID_ENVIRON, "__notification__", "__environ__", 1, 0, "ssissssssiisssphs",
 		"UserName", username,
 		"ComputerName", computername,
 		"InstallDate", installdate,
@@ -1082,7 +1082,12 @@ void log_environ()
 		"SystemVolumeGUID", sysvolguid,
 		"MachineGUID", machineguid,
 		"MainExeBase", mainbase,
-		"MainExeSize", get_image_size((ULONG_PTR)mainbase)
+		"MainExeSize", get_image_size((ULONG_PTR)mainbase),
+#ifdef _WIN64
+		"Bitness", "64-bit"
+#else
+		"Bitness", "32-bit"
+#endif
 		);
 
 	free(username);
@@ -1157,6 +1162,14 @@ void log_syscall(PUNICODE_STRING module, const char *function, PVOID retaddr, DW
 				"ThreadIdentifier", GetCurrentThreadId(),
 				"Return Address", retaddr);
 	}
+}
+
+void log_direct_syscall(const char *function, PVOID addr)
+{
+	loq(LOG_ID_SYSCALL, "__notification__", SYSCALL_NAME, 1, 0, "isp",
+		"ThreadIdentifier", GetCurrentThreadId(),
+		"Function", function,
+		"Address", addr);
 }
 
 void log_procname_anomaly(PUNICODE_STRING InitialName, PUNICODE_STRING InitialPath, PUNICODE_STRING CurrentName, PUNICODE_STRING CurrentPath)

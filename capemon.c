@@ -63,8 +63,6 @@ extern PCHAR ScyllaGetExportDirectory(PVOID Address);
 extern PCHAR ScyllaGetExportNameByScan(PVOID Address, PCHAR* ModuleName, SIZE_T ScanSize);
 extern void YaraScan(PVOID Address, SIZE_T Size);
 extern BOOL IsAddressAccessible(PVOID Address);
-extern void DoTraceOutput(PVOID Address);
-extern BOOL DumpRegion(PVOID Address);
 
 extern BOOL set_hooks_dll(const wchar_t *library);
 extern void set_hooks_by_export_directory(const wchar_t *exportdirectory, const wchar_t *library);
@@ -175,11 +173,6 @@ VOID CALLBACK New_DllLoadNotification(
 				SetInitialBreakpoints((PVOID)base_of_dll_of_interest);
 			}
 		}
-		//else if (path_is_shared(our_process_path_w, library.Buffer)) {
-		//	DebugOutput("Local DLL loaded at 0x%p: %ws (0x%x bytes).\n", NotificationData->Loaded.DllBase, library.Buffer, NotificationData->Loaded.SizeOfImage);
-		//	if (g_config.debugger)
-		//		SetInitialBreakpoints((PVOID)NotificationData->Loaded.DllBase);
-		//}
 		else {
 			SIZE_T numconverted, size;
 			WCHAR exportdirectory_w[MAX_PATH];
@@ -201,16 +194,6 @@ VOID CALLBACK New_DllLoadNotification(
 				}
 			}
 
-			//if (g_config.debugger) {
-			//	if (g_config.break_on_apiname && g_config.break_on_modname) {
-			//		dllname = (char*)malloc(MAX_PATH);
-			//		WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, (LPCWSTR)dllname_w, (int)wcslen(dllname_w)+1, dllname, MAX_PATH, NULL, NULL);
-			//		if (!_stricmp(dllname, g_config.break_on_modname)) {
-			//			BreakpointsHit = FALSE;
-			//			SetInitialBreakpoints(NotificationData->Loaded.DllBase);
-			//		}
-			//	}
-			//}
 			DebugOutput("DLL loaded at 0x%p: %ws (0x%x bytes).\n", NotificationData->Loaded.DllBase, library.Buffer, NotificationData->Loaded.SizeOfImage);
 		}
 	}
@@ -260,7 +243,7 @@ void Disassemble(PVOID Address)
 	DecodeType = Decode32Bits;
 #endif
 
-	if (!Address)
+	if (!Address || !IsAddressAccessible(Address))
 		return;
 
 	Result = distorm_decode(Offset, (const unsigned char*)Address, 0x10, DecodeType, &DecodedInstruction, 1, &DecodedInstructionsCount);

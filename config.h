@@ -98,6 +98,9 @@ struct _g_config {
 	// Debugging level (1 = display exceptions, 2 = display all exceptions)
 	int debug;
 
+	// limit applied hooks (for hook testing)
+	unsigned int hook_range;
+
 	// Default hook type (may be overridden for specific functions)
 	int hook_type;
 
@@ -112,6 +115,9 @@ struct _g_config {
 	// server ip and port
 	//unsigned int host_ip;
 	//unsigned short host_port;
+
+	// Language override
+	int lang;
 
 	// ntdll write protection
 	unsigned int ntdll_protect;
@@ -133,11 +139,12 @@ struct _g_config {
 
 	// exception logging (RtlDispatchException hook)
 	int log_exceptions;
+	// vectored exception handler hook
+	int log_vexcept;
 
 	// behavioural payload extraction options
 	int unpacker;
 	int injection;
-	int caller_regions;
 
 	// should we dump each process on exit/analysis timeout?
 	int procdump;
@@ -234,14 +241,11 @@ struct _g_config {
 	char *break_on_modname;
 	char break_on_return[MAX_PATH];
 	BOOLEAN break_on_return_set;
-	BOOLEAN break_on_apiname_set;
 	BOOLEAN break_on_jit;
 
 	// debugger breakpoints
 	PVOID bp0, bp1, bp2, bp3;
 	BOOLEAN zerobp0, zerobp1, zerobp2, zerobp3;
-	PVOID bp4, bp5, bp6, bp7;
-	BOOLEAN zerobp4, zerobp5, zerobp6, zerobp7;
 	// break-on-return: brX
 	PVOID br0, br1, br2, br3;
 	// count
@@ -250,12 +254,16 @@ struct _g_config {
 	unsigned int hc0, hc1, hc2, hc3;
 	// Dump type
 	int dumptype0, dumptype1, dumptype2, dumptype3;
+	// breakpoint address as VA instead of RVA
+	int bpva0, bpva1, bpva2, bpva3;
 	// Type strings
 	char typestring[MAX_PATH], typestring0[MAX_PATH], typestring1[MAX_PATH], typestring2[MAX_PATH], typestring3[MAX_PATH];
 	PVOID bp[BREAKPOINT_MAX], sysbp[SYSBP_MAX];
 	char *action[BREAKPOINT_MAX];
 	BOOLEAN loopskip;
 	int sysbpmode;
+	// search string
+	char *str[MAX_PATH];
 
 	int trace_all;
 	int step_out;
@@ -264,6 +272,7 @@ struct _g_config {
 	int disable_logging;
 	int base_on_alloc;
 	int base_on_caller;
+	int trace_times;
 	char *trace_into_api[EXCLUSION_MAX];
 };
 

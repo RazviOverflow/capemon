@@ -297,6 +297,12 @@
     <ClCompile Include="hook_clr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="hook_lang.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="hook_vbscript.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config.h">

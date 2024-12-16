@@ -43,7 +43,6 @@ extern void FreeHandler(PVOID BaseAddress), ProcessMessage(DWORD ProcessId, DWOR
 extern void ProcessTrackedRegion(), DebuggerShutdown(), DumpStrings();
 extern LONG WINAPI mini_handler(__in struct _EXCEPTION_POINTERS *ExceptionInfo);
 
-extern lookup_t g_caller_regions;
 extern HANDLE g_terminate_event_handle;
 extern BOOL CAPEExceptionDispatcher(PEXCEPTION_RECORD ExceptionRecord, PCONTEXT Context);
 extern void file_handle_terminate();
@@ -617,6 +616,11 @@ HOOKDEF(NTSTATUS, WINAPI, NtTerminateProcess,
 		DoProcessDump();
 	}
 
+	if (CurrentRegion) {
+		ProcessTrackedRegion(CurrentRegion);
+		CurrentRegion = NULL;
+	}
+
 	set_lasterrors(&lasterror);
 	ret = Old_NtTerminateProcess(ProcessHandle, ExitStatus);
 	return ret;
@@ -838,7 +842,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtAllocateVirtualMemory,
 ) {
 	NTSTATUS ret = Old_NtAllocateVirtualMemory(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && NtCurrentProcess() == ProcessHandle) {
+	if (NT_SUCCESS(ret) && NtCurrentProcess() == ProcessHandle) {
 		if (g_config.unpacker)
 			AllocationHandler(*BaseAddress, *RegionSize, AllocationType, Protect);
 
@@ -863,7 +867,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtAllocateVirtualMemoryEx,
 ) {
 	NTSTATUS ret = Old_NtAllocateVirtualMemoryEx(ProcessHandle, BaseAddress, RegionSize, AllocationType, PageProtection, Parameters, ParameterCount);
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && NtCurrentProcess() == ProcessHandle) {
+	if (NT_SUCCESS(ret) && NtCurrentProcess() == ProcessHandle) {
 		if (g_config.unpacker)
 			AllocationHandler(*BaseAddress, *RegionSize, AllocationType, PageProtection);
 
@@ -1079,19 +1083,11 @@ HOOKDEF(NTSTATUS, WINAPI, NtProtectVirtualMemory,
 		NewAccessProtection = OriginalNewAccessProtection;
 	}
 
-	if (NT_SUCCESS(ret) && BaseAddress && !called_by_hook() && NtCurrentProcess() == ProcessHandle)
+	if (NT_SUCCESS(ret) && BaseAddress && NtCurrentProcess() == ProcessHandle)
 	{
 		PVOID AllocationBase = GetAllocationBase(*BaseAddress);
 		if (g_config.unpacker)
 			ProtectionHandler(*BaseAddress, NewAccessProtection, OldAccessProtection);
-		if (g_config.caller_regions)
-		{
-			if (g_config.yarascan && lookup_get(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
-			{
-				DebugOutput("NtProtectVirtualMemory: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
-				lookup_del(&g_caller_regions, (ULONG_PTR)AllocationBase);
-			}
-		}
 	}
 
 	if (NewAccessProtection == PAGE_EXECUTE_READWRITE &&
@@ -1167,21 +1163,13 @@ HOOKDEF(BOOL, WINAPI, VirtualProtectEx,
 		flNewProtect = OriginalNewProtect;
 	}
 
-	if (NT_SUCCESS(ret) && !called_by_hook() && NtCurrentProcess() == hProcess)
+	if (NT_SUCCESS(ret) && NtCurrentProcess() == hProcess)
 	{
 		char ModulePath[MAX_PATH];
 		PVOID AllocationBase = GetAllocationBase(lpAddress);
 		BOOL MappedModule = GetMappedFileName(GetCurrentProcess(), AllocationBase, ModulePath, MAX_PATH);
 		if (g_config.unpacker)
 			ProtectionHandler(lpAddress, flNewProtect, lpflOldProtect);
-		if (g_config.caller_regions)
-		{
-			if (g_config.yarascan && lookup_get(&g_caller_regions, (ULONG_PTR)AllocationBase, 0))
-			{
-				DebugOutput("VirtualProtectEx: Rescinding caller region at 0x%p due to protection change.\n", AllocationBase);
-				lookup_del(&g_caller_regions, (ULONG_PTR)AllocationBase);
-			}
-		}
 	}
 
 	if (flNewProtect == PAGE_EXECUTE_READWRITE && NtCurrentProcess() == hProcess &&
@@ -1210,7 +1198,7 @@ HOOKDEF(NTSTATUS, WINAPI, NtFreeVirtualMemory,
 	IN OUT  PSIZE_T RegionSize,
 	IN	  ULONG FreeType
 ) {
-	if (g_config.unpacker && !called_by_hook() && NtCurrentProcess() == ProcessHandle && RegionSize && *RegionSize == 0 && (FreeType & MEM_RELEASE))
+	if (g_config.unpacker && NtCurrentProcess() == ProcessHandle && RegionSize && *RegionSize == 0 && (FreeType & MEM_RELEASE))
 		FreeHandler(*BaseAddress);
 
 	NTSTATUS ret = Old_NtFreeVirtualMemory(ProcessHandle, BaseAddress,
@@ -1357,18 +1345,17 @@ HOOKDEF_ALT(BOOL, WINAPI, RtlDispatchException,
 
 	if (g_config.log_exceptions && !((ULONG_PTR)ExceptionRecord->ExceptionAddress >= g_our_dll_base && (ULONG_PTR)ExceptionRecord->ExceptionAddress < (g_our_dll_base + g_our_dll_size)) && !(g_config.debugger && SingleStepHandler && (ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP || ExceptionRecord->ExceptionCode == STATUS_GUARD_PAGE_VIOLATION || ExceptionRecord->ExceptionCode == STATUS_PRIVILEGED_INSTRUCTION))) {
 		int ret = 0;
+		char disassembly[256] = {0};
+		disassemble(ExceptionRecord->ExceptionAddress, disassembly, sizeof(disassembly));
 		if (!ExceptionRecord->NumberParameters && (ExceptionRecord->ExceptionCode >= 0x80000000 || g_config.log_exceptions > 1))
-			LOQ_void("system", "ppp", "ExceptionCode", ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionRecord->ExceptionFlags);
+			LOQ_void("system", "ppps", "ExceptionCode", ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionRecord->ExceptionFlags, "Instruction", disassembly);
 		else if (ExceptionRecord->NumberParameters == 1 && (ExceptionRecord->ExceptionCode >= 0x80000000 || g_config.log_exceptions > 1))
-			LOQ_void("system", "pppp", "ExceptionCode", ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionRecord->ExceptionFlags, "ExceptionInformation", ExceptionRecord->ExceptionInformation[0]);
-		else if (ExceptionRecord->NumberParameters == 2 && (ExceptionRecord->ExceptionCode >= 0x80000000 || g_config.log_exceptions > 1))
-			LOQ_void("system", "ppppp", "ExceptionCode", ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionRecord->ExceptionFlags, "ExceptionInformation[0]", ExceptionRecord->ExceptionInformation[0], "ExceptionInformation[1]", ExceptionRecord->ExceptionInformation[1]);
+			LOQ_void("system", "pppps", "ExceptionCode", ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionRecord->ExceptionFlags, "ExceptionInformation", ExceptionRecord->ExceptionInformation[0], "Instruction", disassembly);
+		else if (ExceptionRecord->NumberParameters > 1 && (ExceptionRecord->ExceptionCode >= 0x80000000 || g_config.log_exceptions > 1))
+			LOQ_void("system", "pppppis", "ExceptionCode", ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionRecord->ExceptionFlags, "ExceptionInformation[0]", ExceptionRecord->ExceptionInformation[0], "ExceptionInformation[1]", ExceptionRecord->ExceptionInformation[1], "Parameters", ExceptionRecord->NumberParameters, "Instruction", disassembly);
 	}
 
-	if (CAPEExceptionDispatcher(ExceptionRecord, Context))
-		return TRUE;
-	else
-		return Old_RtlDispatchException(ExceptionRecord, Context);
+	return CAPEExceptionDispatcher(ExceptionRecord, Context) ? TRUE : Old_RtlDispatchException(ExceptionRecord, Context);
 }
 
 HOOKDEF_NOTAIL(WINAPI, NtRaiseException,

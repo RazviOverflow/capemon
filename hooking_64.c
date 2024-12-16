@@ -30,7 +30,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 extern void DebugOutput(_In_ LPCTSTR lpOutputString, ...);
 extern DWORD GetTimeStamp(LPVOID Address);
-extern PVOID GetExportAddress(HMODULE ModuleBase, PCHAR FunctionName);
+extern PVOID GetFunctionAddress(HMODULE ModuleBase, PCHAR FunctionName);
+extern SIZE_T GetAllocationSize(PVOID Address);
 
 PVOID LdrpInvertedFunctionTableSRWLock;
 
@@ -906,6 +907,7 @@ int hook_api(hook_t *h, int type)
 	DWORD old_protect;
 	int ret = -1;
 	unsigned char *addr;
+	HMODULE hmod = NULL;
 
 	// table with all possible hooking types
 	static struct {
@@ -928,10 +930,13 @@ int hook_api(hook_t *h, int type)
 	addr = h->addr;
 
 	if (addr == NULL && h->library != NULL && h->funcname != NULL) {
-		HMODULE hmod = GetModuleHandleW(h->library);
+		hmod = GetModuleHandleW(h->library);
 		/* if the DLL isn't loaded, don't bother attempting anything else */
 		if (hmod == NULL)
 			return 0;
+
+		if (!wcscmp(h->library, L"kernel32") && GetProcAddress(GetModuleHandle("KernelBase"), h->funcname))
+			hmod = GetModuleHandle("KernelBase");
 
 		if (!strcmp(h->funcname, "RtlDispatchException")) {
 			// RtlDispatchException is the first relative call in KiUserExceptionDispatcher
@@ -960,21 +965,29 @@ int hook_api(hook_t *h, int type)
 			addr = (unsigned char *)get_cdocument_write_addr(hmod);
 		else if (!wcscmp(h->library, L"combase")) {
 			PVOID getprocaddr = (PVOID)GetProcAddress(hmod, h->funcname);
-			addr = (unsigned char *)GetExportAddress(hmod, (PCHAR)h->funcname);
+			addr = (unsigned char *)GetFunctionAddress(hmod, (PCHAR)h->funcname);
 			if (addr && (PVOID)addr != getprocaddr)
 				DebugOutput("hook_api: combase::%s export address 0x%p differs from GetProcAddress -> 0x%p\n", h->funcname, addr, getprocaddr);
 		}
+		else if (!wcscmp(h->library, L"vbscript")) {
+			addr = (unsigned char *)GetProcAddress(hmod, h->funcname);
+			if (!addr)
+				addr = (unsigned char *)get_vbscript_addr(hmod, (PCHAR)h->funcname);
+		}
 		else {
-			PVOID exportaddr = GetExportAddress(hmod, (PCHAR)h->funcname);
+			PVOID exportaddr = GetFunctionAddress(hmod, (PCHAR)h->funcname);
 			addr = (unsigned char *)GetProcAddress(hmod, h->funcname);
 			if (exportaddr && addr && (PVOID)addr != exportaddr) {
 				unsigned int offset;
 				char *module_name = convert_address_to_dll_name_and_offset((ULONG_PTR)addr, &offset);
 				DebugOutput("hook_api: Warning - %s export address 0x%p differs from GetProcAddress -> 0x%p (%s::0x%x)\n", h->funcname, exportaddr, addr, module_name, offset);
 			}
-			else if (exportaddr && !addr && !wcscmp(h->library, L"clrjit")) {
+			else if (exportaddr && !addr) {
 				addr = exportaddr;
-				DebugOutput("hook_api: clrjit::%s export address 0x%p obtained via GetExportAddress\n", h->funcname, addr);
+				if  (!wcscmp(h->library, L"clrjit"))
+					DebugOutput("hook_api: clrjit::%s export address 0x%p obtained via GetFunctionAddress\n", h->funcname, addr);
+				else
+					DebugOutput("hook_api: %s export address 0x%p obtained via GetFunctionAddress\n", h->funcname, addr);
 			}
 		}
 
@@ -1027,7 +1040,7 @@ int hook_api(hook_t *h, int type)
 
 	addr = handle_stub(h, addr);
 
-	if (!wcscmp(h->library, L"ntdll") && !memcmp(addr, "\x4c\x8b\xd1\xb8", 4)) {
+	if (!wcscmp(h->library, L"ntdll") && !memcmp(addr, "\x4c\x8b\xd1\xb8", 4) && memcmp(addr+8, "\x0f\x05", 2)) {
 		// hooking a native API, leave in the mov eax, <syscall nr> instruction
 		// as some malware depends on this for direct syscalls
 		// missing a few syscalls is better than crashing and getting no information
@@ -1075,9 +1088,10 @@ int hook_api(hook_t *h, int type)
 				if (h->old_func)
 					*h->old_func = h->hookdata->tramp;
 
-				// successful hook is successful
+				// hook is successful
 				h->is_hooked = 1;
 				h->hook_addr = addr;
+				add_dll_range((ULONG_PTR)hmod, (ULONG_PTR)hmod + GetAllocationSize(hmod));
 			}
 		}
 		else {

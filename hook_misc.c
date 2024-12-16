@@ -37,6 +37,11 @@ extern char *our_process_name;
 extern int path_is_system(const wchar_t *path_w);
 extern void DebugOutput(_In_ LPCTSTR lpOutputString, ...);
 extern void ProcessMessage(DWORD ProcessId, DWORD ThreadId);
+extern const char* GetLanguageName(LANGID langID);
+
+extern BOOL TraceRunning;
+
+extern BOOL Trace(struct _EXCEPTION_POINTERS* ExceptionInfo);
 
 LPTOP_LEVEL_EXCEPTION_FILTER TopLevelExceptionFilter;
 BOOL PlugXConfigDumped, CompressedPE;
@@ -112,12 +117,36 @@ HOOKDEF(LPTOP_LEVEL_EXCEPTION_FILTER, WINAPI, SetUnhandledExceptionFilter,
 
 PVECTORED_EXCEPTION_HANDLER SampleVectoredHandler;
 
-LONG WINAPI VectoredExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
+LONG WINAPI New_VectoredExceptionFilter(struct _EXCEPTION_POINTERS* ExceptionInfo)
 {
+	LONG ret = 0;
 	if ((ULONG_PTR)ExceptionInfo->ExceptionRecord->ExceptionAddress >= g_our_dll_base && (ULONG_PTR)ExceptionInfo->ExceptionRecord->ExceptionAddress < (g_our_dll_base + g_our_dll_size))
 		return EXCEPTION_CONTINUE_SEARCH;
 	else
-		return SampleVectoredHandler(ExceptionInfo);
+	{
+#ifdef _WIN64
+		PVOID CIP = (PVOID)ExceptionInfo->ContextRecord->Rip;
+#else
+		PVOID CIP = (PVOID)ExceptionInfo->ContextRecord->Eip;
+#endif
+		ret = SampleVectoredHandler(ExceptionInfo);
+#ifdef _WIN64
+		PVOID NewCIP = (PVOID)ExceptionInfo->ContextRecord->Rip;
+#else
+		PVOID NewCIP = (PVOID)ExceptionInfo->ContextRecord->Eip;
+#endif
+		if (ret == EXCEPTION_CONTINUE_EXECUTION) {
+			char disassembly[256] = {0};
+			disassemble(CIP, disassembly, sizeof(disassembly));
+			if (g_config.log_vexcept && NewCIP != CIP)
+				LOQ_void("system", "pppipppps", "ExceptionCode", ExceptionInfo->ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionInfo->ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionInfo->ExceptionRecord->ExceptionFlags, "NumberParameters", ExceptionInfo->ExceptionRecord->NumberParameters, "ExceptionInformation[0]", ExceptionInfo->ExceptionRecord->ExceptionInformation[0], "ExceptionInformation[1]", ExceptionInfo->ExceptionRecord->ExceptionInformation[1], "PreviousIP", CIP, "NewIP", NewCIP, "Instruction", disassembly);
+			else if (g_config.log_vexcept)
+				LOQ_void("system", "pppipps", "ExceptionCode", ExceptionInfo->ExceptionRecord->ExceptionCode, "ExceptionAddress", ExceptionInfo->ExceptionRecord->ExceptionAddress, "ExceptionFlags", ExceptionInfo->ExceptionRecord->ExceptionFlags, "NumberParameters", ExceptionInfo->ExceptionRecord->NumberParameters, "ExceptionInformation[0]", ExceptionInfo->ExceptionRecord->ExceptionInformation[0], "ExceptionInformation[1]", ExceptionInfo->ExceptionRecord->ExceptionInformation, "Instruction", disassembly);
+			if (TraceRunning)
+				SetSingleStepMode(ExceptionInfo->ContextRecord, Trace);
+		}
+		return ret;
+	}
 }
 
 HOOKDEF(PVOID, WINAPI, RtlAddVectoredExceptionHandler,
@@ -128,7 +157,7 @@ HOOKDEF(PVOID, WINAPI, RtlAddVectoredExceptionHandler,
 
 	if (!SampleVectoredHandler) {
 		SampleVectoredHandler = Handler;
-		ret = Old_RtlAddVectoredExceptionHandler(First, VectoredExceptionFilter);
+		ret = Old_RtlAddVectoredExceptionHandler(First, New_VectoredExceptionFilter);
 	}
 	else
 		ret = Old_RtlAddVectoredExceptionHandler(First, Handler);
@@ -772,7 +801,7 @@ normal_call:
 
 		if (!g_config.no_stealth && SystemInformationClass == SystemBasicInformation && SystemInformationLength >= sizeof(SYSTEM_BASIC_INFORMATION) && NT_SUCCESS(ret)) {
 			PSYSTEM_BASIC_INFORMATION p = (PSYSTEM_BASIC_INFORMATION)SystemInformation;
-			p->NumberOfProcessors = 2;
+			p->NumberOfProcessors = 4;
 		}
 
 		/* This is nearly arbitrary and simply designed to test whether the Upatre author(s) or others
@@ -1092,6 +1121,15 @@ HOOKDEF(HRESULT, WINAPI, CLSIDFromProgID,
 	return ret;
 }
 
+HOOKDEF(HRESULT, WINAPI, CLSIDFromProgIDEx,
+	_In_ LPCOLESTR lpszProgID,
+	_Out_ LPCLSID lpclsid
+) {
+	HRESULT ret = Old_CLSIDFromProgIDEx(lpszProgID, lpclsid);
+	LOQ_hresult("misc", "u", "ProgID", lpszProgID);
+	return ret;
+}
+
 HOOKDEF(BOOL, WINAPI, GetCurrentHwProfileW,
 	_Out_ LPHW_PROFILE_INFO lpHwProfileInfo
 ) {
@@ -1113,8 +1151,8 @@ HOOKDEF(void, WINAPI, GlobalMemoryStatus,
 ) {
 	BOOL ret = TRUE;
 	Old_GlobalMemoryStatus(lpBuffer);
-	if (!g_config.no_stealth && lpBuffer->dwTotalPhys < 0x80000000)
-		lpBuffer->dwTotalPhys = (SIZE_T)0x200000000;
+	if (!g_config.no_stealth && lpBuffer->dwTotalPhys < 0x400000000)
+		lpBuffer->dwTotalPhys = (SIZE_T)0x400000000;
 	LOQ_void("misc", "ii", "MemoryLoad", lpBuffer->dwMemoryLoad, "TotalPhysicalMB", lpBuffer->dwTotalPhys / (1024 * 1024));
 }
 
@@ -1122,8 +1160,8 @@ HOOKDEF(BOOL, WINAPI, GlobalMemoryStatusEx,
 	_Out_ LPMEMORYSTATUSEX lpBuffer
 ) {
 	BOOL ret = Old_GlobalMemoryStatusEx(lpBuffer);
-	if (ret && !g_config.no_stealth && lpBuffer->ullTotalPhys < 0x80000000)
-		lpBuffer->ullTotalPhys = 0x200000000;
+	if (ret && !g_config.no_stealth && lpBuffer->ullTotalPhys < 0x400000000)
+		lpBuffer->ullTotalPhys = 0x400000000;
 	LOQ_void("misc", "ii", "MemoryLoad", lpBuffer->dwMemoryLoad, "TotalPhysicalMB", lpBuffer->ullTotalPhys / (1024 * 1024));
 	return ret;
 }
@@ -1619,7 +1657,15 @@ HOOKDEF(HKL, WINAPI, GetKeyboardLayout,
 )
 {
 	HKL ret = Old_GetKeyboardLayout(idThread);
-	LOQ_nonnull("misc", "p", "KeyboardLayout", (DWORD_PTR)ret & 0xFFFF);
+	if (g_config.lang)
+		ret = (HKL)(DWORD_PTR)g_config.lang;
+	const char* LanguageName = NULL;
+	if (ret)
+		LanguageName = GetLanguageName((LANGID)ret);
+	if (LanguageName)
+		LOQ_nonnull("misc", "ps", "KeyboardLayout", (DWORD_PTR)ret & 0xFFFF, "LanguageName", LanguageName);
+	else
+		LOQ_nonnull("misc", "p", "KeyboardLayout", (DWORD_PTR)ret & 0xFFFF);
 	return ret;
 }
 

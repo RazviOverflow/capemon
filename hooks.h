@@ -391,6 +391,12 @@ HOOKDEF(BOOL, WINAPI, GetVolumeInformationByHandleW,
 	_In_	  DWORD   nFileSystemNameSize
 );
 
+HOOKDEF(DWORD, WINAPI, RmStartSession,
+	__out DWORD* pSessionHandle,
+	DWORD   dwSessionFlags,
+	__out WCHAR strSessionKey[]
+);
+
 //
 // Registry Hooks
 //
@@ -874,6 +880,14 @@ HOOKDEF(LONG_PTR, WINAPI, SetWindowLongPtrW,
 	_In_ LONG_PTR dwNewLong
 );
 
+HOOKDEF(int, WINAPI, MessageBoxTimeoutW,
+	__in HWND hwndOwner,
+	__in LPCWSTR lpszText,
+	__in LPCWSTR lpszCaption,
+	__in UINT wStyle,
+	__in WORD wLanguageId,
+	__in DWORD dwTimeout
+);
 
 //
 // Sync Hooks
@@ -1212,6 +1226,13 @@ HOOKDEF(HRESULT, WINAPI, CoGetClassObject,
 	_Out_	LPVOID	   *ppv
 );
 
+HOOKDEF(HRESULT, WINAPI, CoGetObject,
+	_In_		LPCWSTR pszName,
+	_In_opt_	BIND_OPTS *pBindOptions,
+	_In_		REFIID riid,
+	_Out_		LPVOID *ppv
+);
+
 HOOKDEF(NTSTATUS, WINAPI, NtMapViewOfSection,
 	__in	 HANDLE SectionHandle,
 	__in	 HANDLE ProcessHandle,
@@ -1470,6 +1491,11 @@ HOOKDEF(NTSTATUS, WINAPI, NtSuspendThread,
 	__out_opt  ULONG *PreviousSuspendCount
 );
 
+HOOKDEF(NTSTATUS, WINAPI, NtAlertResumeThread,
+	__in		HANDLE ThreadHandle,
+	__out_opt   ULONG *SuspendCount
+);
+
 HOOKDEF(NTSTATUS, WINAPI, NtResumeThread,
 	__in		HANDLE ThreadHandle,
 	__out_opt   ULONG *SuspendCount
@@ -1499,6 +1525,17 @@ HOOKDEF(HANDLE, WINAPI, CreateRemoteThread,
 	__out_opt  LPDWORD lpThreadId
 );
 
+HOOKDEF(HANDLE, WINAPI, CreateRemoteThreadEx,
+	__in		HANDLE hProcess,
+	__in		LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	__in		SIZE_T dwStackSize,
+	__in		LPTHREAD_START_ROUTINE lpStartAddress,
+	__in		LPVOID lpParameter,
+	__in		DWORD dwCreationFlags,
+	__inout		LPPROC_THREAD_ATTRIBUTE_LIST lpAttributeList,
+	__out_opt	LPDWORD lpThreadId
+);
+
 HOOKDEF(BOOL, WINAPI, TerminateThread,
 	__inout  HANDLE hThread,
 	__in	 DWORD dwExitCode
@@ -1515,6 +1552,10 @@ HOOKDEF(NTSTATUS, WINAPI, RtlCreateUserThread,
 	IN PVOID StartParameter OPTIONAL,
 	OUT PHANDLE ThreadHandle,
 	OUT PCLIENT_ID ClientId
+);
+
+HOOKDEF(BOOL, WINAPI, NtTestAlert,
+	VOID
 );
 
 //
@@ -1872,6 +1913,11 @@ HOOKDEF(BOOL, WINAPI, SystemTimeToTzSpecificLocalTime,
 );
 
 HOOKDEF(HRESULT, WINAPI, CLSIDFromProgID,
+	_In_ LPCOLESTR lpszProgID,
+	_Out_ LPCLSID lpclsid
+);
+
+HOOKDEF(HRESULT, WINAPI, CLSIDFromProgIDEx,
 	_In_ LPCOLESTR lpszProgID,
 	_Out_ LPCLSID lpclsid
 );
@@ -2277,6 +2323,19 @@ HOOKDEF(int, WSAAPI, GetAddrInfoW,
 	_Out_	 PADDRINFOW *ppResult
 );
 
+HOOKDEF(int, WINAPI, GetAddrInfoExW,
+	_In_opt_  PCWSTR pName,
+	_In_opt_  PCWSTR pServiceName,
+	_In_      DWORD dwNameSpace,
+	_In_opt_  LPGUID lpNspId,
+	_In_opt_  const ADDRINFOEXW *hints,
+	_Out_	  PADDRINFOEXW *ppResult,
+	_In_opt_  PVOID timeout,
+	_In_opt_  LPOVERLAPPED lpOverlapped,
+	_In_opt_  PVOID lpCompletionRoutine,
+	_In_opt_  LPHANDLE lpHandle
+);
+
 HOOKDEF(DWORD, WINAPI, WNetUseConnectionW,
 	_In_	 HWND hwndOwner,
 	_In_	 LPNETRESOURCEW lpNetResource,
@@ -2478,6 +2537,14 @@ HOOKDEF(NTSTATUS, WINAPI, NtQuerySystemTime,
 
 HOOKDEF(void, WINAPI, GetSystemTimeAsFileTime,
 	_Out_ LPFILETIME lpSystemTimeAsFileTime
+);
+
+HOOKDEF(DWORD, WINAPI, timeSetEvent,
+   UINT           uDelay,
+   UINT           uResolution,
+   LPTIMECALLBACK lpTimeProc,
+   DWORD_PTR      dwUser,
+   UINT           fuEvent
 );
 
 HOOKDEF(NTSTATUS, WINAPI, NtQueryPerformanceCounter,
@@ -3067,6 +3134,13 @@ HOOKDEF_NOTAIL(WINAPI, LdrUnloadDll,
 	PVOID DllImageBase
 );
 
+HOOKDEF(BOOL, WINAPI, LdrpCallInitRoutine,
+	__in PDLL_INIT_ROUTINE InitRoutine,
+	__in PVOID DllHandle,
+	__in ULONG Reason,
+	__in_opt PCONTEXT Context
+);
+
 HOOKDEF_NOTAIL(WINAPI, JsEval,
 	PVOID Arg1,
 	PVOID Arg2,
@@ -3291,6 +3365,22 @@ HOOKDEF(HANDLE, WINAPI, HeapCreate,
 
 HOOKDEF(HKL, WINAPI, GetKeyboardLayout,
   _In_ DWORD idThread
+);
+
+HOOKDEF(NTSTATUS, WINAPI, NtQueryDefaultUILanguage,
+	__out	LANGID *DefaultUILanguageId
+);
+
+HOOKDEF(NTSTATUS, WINAPI, NtQueryInstallUILanguage,
+	__out	LANGID *InstallUILanguageId
+);
+
+HOOKDEF(int, WINAPI, GetUserDefaultLCID,
+	void
+);
+
+HOOKDEF(int, WINAPI, GetSystemDefaultLangID,
+	void
 );
 
 HOOKDEF (void, WINAPI, OutputDebugStringA,
@@ -3769,3 +3859,4 @@ HOOKDEF(BOOL, WINAPI, K32EnumProcesses,
 	_In_ DWORD cb,
 	_Out_ DWORD* pBytesReturned
 );
+#include "hook_vbscript.h"
