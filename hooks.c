@@ -863,6 +863,10 @@ hook_t full_hooks[] = {
 	HOOK(kernel32, ExpandEnvironmentStringsW),
 	HOOK(kernelbase, EnumProcesses),
 	HOOK(kernel32, K32EnumProcesses),
+	HOOK(crypt32, CryptImportPublicKeyInfoEx),
+	HOOK(bcrypt, BCryptExportKey),
+	HOOK(crypt32, CryptExportPublicKeyInfo),
+	HOOK(bcrypt, BCryptGenerateKeyPair),
 };
 
 // This hook set is intended to include only hooks which are necessary

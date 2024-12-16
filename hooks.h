@@ -3860,3 +3860,38 @@ HOOKDEF(BOOL, WINAPI, K32EnumProcesses,
 	_Out_ DWORD* pBytesReturned
 );
 #include "hook_vbscript.h"
+
+HOOKDEF(BOOL, WINAPI, CryptImportPublicKeyInfoEx,
+	_In_ HCRYPTPROV hCryptProv,
+	_In_ DWORD dwCertEncodingType,
+	_In_ PCERT_PUBLIC_KEY_INFO pInfo,
+	_In_ ALG_ID aiKeyAlg,
+	_In_ DWORD dwFlags,
+	_In_ void* pvAuxInfo,
+	_Out_ HCRYPTKEY* phKey
+);
+
+HOOKDEF(NTSTATUS, WINAPI, BCryptExportKey,
+	_In_ BCRYPT_KEY_HANDLE hKey,
+	_In_ BCRYPT_KEY_HANDLE hExportKey,
+	_In_ LPCWSTR pszBlobType,
+	_Out_ PUCHAR pbOutput,
+	_In_ ULONG cbOutput,
+	_Out_ ULONG* pcbResult,
+	_In_ ULONG dwFlags
+);
+
+HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfo,
+	_In_ HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProvOrNCryptKey,
+	_In_ DWORD dwKeySpec,
+	_In_ DWORD dwCertEncodingType,
+	_Out_ PCERT_PUBLIC_KEY_INFO pInfo,
+	_Inout_ DWORD* pcbInfo
+);
+
+HOOKDEF(NTSTATUS, WINAPI, BCryptGenerateKeyPair,
+	_Inout_ BCRYPT_ALG_HANDLE hAlgorithm,
+	_Out_ BCRYPT_KEY_HANDLE* phKey,
+	_In_ ULONG dwLength,
+	_In_ ULONG dwFlags
+);

@@ -598,3 +598,58 @@ HOOKDEF(NTSTATUS, WINAPI, BCryptEncrypt,
 	LOQ_ntstatus("crypto", "bbhpi", "Input", cbInput, pbInput, "IV", cbIV, pbIV, "Flags", dwFlags, "CryptKey", hKey, "Length", cbInput);
 	return ret;
 }
+
+HOOKDEF(BOOL, WINAPI, CryptImportPublicKeyInfoEx,
+	_In_ HCRYPTPROV hCryptProv,
+	_In_ DWORD dwCertEncodingType,
+	_In_ PCERT_PUBLIC_KEY_INFO pInfo,
+	_In_ ALG_ID aiKeyAlg,
+	_In_ DWORD dwFlags,
+	_In_ void* pvAuxInfo,
+	_Out_ HCRYPTKEY* phKey
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptImportPublicKeyInfoEx\n");
+	BOOL ret = Old_CryptImportPublicKeyInfoEx(hCryptProv, dwCertEncodingType, pInfo, aiKeyAlg, dwFlags, pvAuxInfo, phKey);
+	LOQ_bool("crypto", "phsb", "phKey", phKey, "CertEncodingType", dwCertEncodingType, "AlgOID", pInfo->Algorithm.pszObjId, "Blob", pInfo->PublicKey.cbData, pInfo->PublicKey.pbData); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(NTSTATUS, WINAPI, BCryptExportKey,
+	_In_ BCRYPT_KEY_HANDLE hKey,
+	_In_ BCRYPT_KEY_HANDLE hExportKey,
+	_In_ LPCWSTR pszBlobType,
+	_Out_ PUCHAR pbOutput,
+	_In_ ULONG cbOutput,
+	_Out_ ULONG* pcbResult,
+	_In_ ULONG dwFlags
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked BCryptExportKey\n");
+	NTSTATUS ret = Old_BCryptExportKey(hKey, hExportKey, pszBlobType, pbOutput, cbOutput, pcbResult, dwFlags);
+	LOQ_ntstatus("crypto", "ppi", "hKey", hKey, "hExportKey", hExportKey, "cbOutput", cbOutput); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfo,
+	_In_ HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProvOrNCryptKey,
+	_In_ DWORD dwKeySpec,
+	_In_ DWORD dwCertEncodingType,
+	_Out_ PCERT_PUBLIC_KEY_INFO pInfo,
+	_Inout_ DWORD* pcbInfo
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptExportPublicKeyInfo\n");
+	BOOL ret = Old_CryptExportPublicKeyInfo(hCryptProvOrNCryptKey, dwKeySpec, dwCertEncodingType, pInfo, pcbInfo);
+	LOQ_bool("crypto", "hsb", "CertEncodingType", dwCertEncodingType, "AlgOID", pInfo->Algorithm.pszObjId, "Blob", pInfo->PublicKey.cbData, pInfo->PublicKey.pbData); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
+
+HOOKDEF(NTSTATUS, WINAPI, BCryptGenerateKeyPair,
+	_Inout_ BCRYPT_ALG_HANDLE hAlgorithm,
+	_Out_ BCRYPT_KEY_HANDLE* phKey,
+	_In_ ULONG dwLength,
+	_In_ ULONG dwFlags
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked BCryptGenerateKeyPair\n");
+	NTSTATUS ret = Old_BCryptGenerateKeyPair(hAlgorithm, phKey, dwLength, dwFlags);
+	LOQ_ntstatus("crypto", "pih", "phKey", phKey, "dwLength", dwLength, "dwFlags", dwFlags); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
