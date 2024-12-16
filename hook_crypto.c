@@ -610,7 +610,7 @@ HOOKDEF(BOOL, WINAPI, CryptImportPublicKeyInfoEx,
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptImportPublicKeyInfoEx\n");
 	BOOL ret = Old_CryptImportPublicKeyInfoEx(hCryptProv, dwCertEncodingType, pInfo, aiKeyAlg, dwFlags, pvAuxInfo, phKey);
-	LOQ_bool("crypto", "phsb", "phKey", phKey, "CertEncodingType", dwCertEncodingType, "AlgOID", pInfo->Algorithm.pszObjId, "Blob", pInfo->PublicKey.cbData, pInfo->PublicKey.pbData); // Modify category, LOQ_ function and log message according to your needs
+	LOQ_bool("crypto", "phsb", "phKey", phKey, "CertEncodingType", dwCertEncodingType, "AlgoID", pInfo->Algorithm.pszObjId, "Blob", pInfo->PublicKey.cbData, pInfo->PublicKey.pbData); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
 
@@ -638,7 +638,7 @@ HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfo,
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptExportPublicKeyInfo\n");
 	BOOL ret = Old_CryptExportPublicKeyInfo(hCryptProvOrNCryptKey, dwKeySpec, dwCertEncodingType, pInfo, pcbInfo);
-	LOQ_bool("crypto", "hsb", "CertEncodingType", dwCertEncodingType, "AlgOID", pInfo->Algorithm.pszObjId, "Blob", pInfo->PublicKey.cbData, pInfo->PublicKey.pbData); // Modify category, LOQ_ function and log message according to your needs
+	LOQ_bool("crypto", "hh", "CertEncodingType", dwCertEncodingType, "KeySpec", dwKeySpec); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
 
