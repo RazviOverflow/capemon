@@ -665,7 +665,7 @@ HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfoEx,
 	_Inout_ DWORD* pcbInfo
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptExportPublicKeyInfoEx\n");
-	BOOL ret = Old_CryptExportPublicKeyInfoEx(hCryptProvOrNCryptKey, dwKeySpec, dwCertEncodingType, pszPublicKeyObjId, dwFlags, *pvAuxInfo, pInfo, *pcbInfo);
+	BOOL ret = Old_CryptExportPublicKeyInfoEx(hCryptProvOrNCryptKey, dwKeySpec, dwCertEncodingType, pszPublicKeyObjId, dwFlags, pvAuxInfo, pInfo, pcbInfo);
 	LOQ_bool("crypto", "hhh", "CertEncodingType", dwCertEncodingType, "KeySpec", dwKeySpec, "Flags", dwFlags); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
