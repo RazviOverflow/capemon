@@ -3895,3 +3895,14 @@ HOOKDEF(NTSTATUS, WINAPI, BCryptGenerateKeyPair,
 	_In_ ULONG dwLength,
 	_In_ ULONG dwFlags
 );
+
+HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfoEx,
+	_In_      HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProvOrNCryptKey,
+	_In_      DWORD                           dwKeySpec,
+	_In_      DWORD                           dwCertEncodingType,
+	_In_      LPSTR                           pszPublicKeyObjId,
+	_In_      DWORD                           dwFlags,
+	_In_      void* pvAuxInfo,
+	_Out_     PCERT_PUBLIC_KEY_INFO           pInfo,
+	_Inout_ DWORD* pcbInfo
+);

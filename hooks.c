@@ -867,6 +867,7 @@ hook_t full_hooks[] = {
 	HOOK(bcrypt, BCryptExportKey),
 	HOOK(crypt32, CryptExportPublicKeyInfo),
 	HOOK(bcrypt, BCryptGenerateKeyPair),
+	HOOK(crypt32, CryptExportPublicKeyInfoEx),
 };
 
 // This hook set is intended to include only hooks which are necessary
