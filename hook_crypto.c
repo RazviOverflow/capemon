@@ -653,3 +653,19 @@ HOOKDEF(NTSTATUS, WINAPI, BCryptGenerateKeyPair,
 	LOQ_ntstatus("crypto", "pih", "phKey", phKey, "dwLength", dwLength, "dwFlags", dwFlags); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
+
+HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfoEx,
+	_In_      HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProvOrNCryptKey,
+	_In_      DWORD                           dwKeySpec,
+	_In_      DWORD                           dwCertEncodingType,
+	_In_      LPSTR                           pszPublicKeyObjId,
+	_In_      DWORD                           dwFlags,
+	_In_      void* pvAuxInfo,
+	_Out_     PCERT_PUBLIC_KEY_INFO           pInfo,
+	_Inout_ DWORD* pcbInfo
+) {
+	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptExportPublicKeyInfoEx\n");
+	BOOL ret = Old_CryptExportPublicKeyInfoEx(hCryptProvOrNCryptKey, dwKeySpec, dwCertEncodingType, pszPublicKeyObjId, dwFlags, *pvAuxInfo, pInfo, *pcbInfo);
+	LOQ_bool("crypto", "hh", "CertEncodingType", dwCertEncodingType, "KeySpec", dwKeySpec); // Modify category, LOQ_ function and log message according to your needs
+	return ret;
+}
