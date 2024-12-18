@@ -625,7 +625,7 @@ HOOKDEF(NTSTATUS, WINAPI, BCryptExportKey,
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked BCryptExportKey\n");
 	NTSTATUS ret = Old_BCryptExportKey(hKey, hExportKey, pszBlobType, pbOutput, cbOutput, pcbResult, dwFlags);
-	LOQ_ntstatus("crypto", "ppi", "hKey", hKey, "hExportKey", hExportKey, "cbOutput", cbOutput); // Modify category, LOQ_ function and log message according to your needs
+	LOQ_ntstatus("crypto", "ppih", "hKey", hKey, "hExportKey", hExportKey, "cbOutput", cbOutput, "BlobType", pszBlobType, "Flags", dwFlags); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
 
@@ -666,6 +666,6 @@ HOOKDEF(BOOL, WINAPI, CryptExportPublicKeyInfoEx,
 ) {
 	DebuggerOutput("[***** DEBUG MESSAGE - EXTENDED HOOKS *****] Hooked CryptExportPublicKeyInfoEx\n");
 	BOOL ret = Old_CryptExportPublicKeyInfoEx(hCryptProvOrNCryptKey, dwKeySpec, dwCertEncodingType, pszPublicKeyObjId, dwFlags, *pvAuxInfo, pInfo, *pcbInfo);
-	LOQ_bool("crypto", "hh", "CertEncodingType", dwCertEncodingType, "KeySpec", dwKeySpec); // Modify category, LOQ_ function and log message according to your needs
+	LOQ_bool("crypto", "hhh", "CertEncodingType", dwCertEncodingType, "KeySpec", dwKeySpec, "Flags", dwFlags); // Modify category, LOQ_ function and log message according to your needs
 	return ret;
 }
